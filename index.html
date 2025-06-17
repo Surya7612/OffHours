@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OffHours - Reconnect with Real Life</title>
+    <meta name="description" content="Daily non-digital activities to help you unwind and reconnect with real life after work." />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="OffHours" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icon-192.png" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://offhours.app/" />
+    <meta property="og:title" content="OffHours - Reconnect with Real Life" />
+    <meta property="og:description" content="Daily non-digital activities to help you unwind and reconnect with real life after work." />
+    <meta property="og:image" content="/social-preview.png" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://offhours.app/" />
+    <meta property="twitter:title" content="OffHours - Reconnect with Real Life" />
+    <meta property="twitter:description" content="Daily non-digital activities to help you unwind and reconnect with real life after work." />
+    <meta property="twitter:image" content="/social-preview.png" />
+    
+    <!-- Performance & Security -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://api.lu.ma" />
+    
+    <!-- Analytics (Add your tracking ID) -->
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=GA_TRACKING_ID"></script> -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Install Prompt Handler -->
+    <script>
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        window.deferredPrompt = e;
+      });
+      
+      // Track PWA install
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        // Track this event in analytics
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,55 @@
+{
+  "name": "OffHours - Reconnect with Real Life",
+  "short_name": "OffHours",
+  "description": "Daily non-digital activities to help you unwind and reconnect with real life after work.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "health", "social"],
+  "shortcuts": [
+    {
+      "name": "Today's Activity",
+      "short_name": "Activity",
+      "description": "View today's suggested activity",
+      "url": "/?shortcut=activity",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Events",
+      "short_name": "Events",
+      "description": "Check upcoming events",
+      "url": "/?shortcut=events",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
