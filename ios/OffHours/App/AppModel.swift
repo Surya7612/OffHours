@@ -125,9 +125,9 @@ final class AppModel {
         phase = .signedOut
     }
 
-    func deleteAccount() async throws {
+    func deleteAccount(appleAuthorizationCode: String?) async throws {
         guard let backend else { return }
-        try await backend.deleteAccount()
+        try await backend.deleteAccount(appleAuthorizationCode: appleAuthorizationCode)
         clearLocalState()
         phase = .signedOut
     }

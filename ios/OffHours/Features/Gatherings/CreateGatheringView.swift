@@ -55,7 +55,7 @@ struct CreateGatheringView: View {
                         }
                     }
 
-                    DatePicker("Starts", selection: $startsAt, in: Date.now.addingTimeInterval(30 * 60)..., displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Starts", selection: $startsAt, in: Date.now.addingTimeInterval(30 * 60)...Date.now.addingTimeInterval(30 * 24 * 60 * 60), displayedComponents: [.date, .hourAndMinute])
 
                     Picker("Length", selection: $durationMinutes) {
                         ForEach(Self.durations, id: \.self) { minutes in

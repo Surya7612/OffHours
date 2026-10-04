@@ -28,8 +28,14 @@ struct Backend: Sendable {
         try await client.auth.signOut()
     }
 
-    func deleteAccount() async throws {
-        try await client.rpc("delete_my_account").execute()
+    /// The authorization code comes from a fresh Sign in with Apple prompt, so the server can
+    /// revoke the app's access to the Apple ID before deleting the account.
+    func deleteAccount(appleAuthorizationCode: String?) async throws {
+        struct Payload: Encodable { let authorization_code: String? }
+        try await client.functions.invoke(
+            "delete-account",
+            options: FunctionInvokeOptions(body: Payload(authorization_code: appleAuthorizationCode))
+        )
         try? await client.auth.signOut(scope: .local)
     }
 
@@ -185,13 +191,24 @@ struct Backend: Sendable {
 
     func report(gathering: Gathering, reason: String) async throws {
         struct Report: Encodable {
+            let id: UUID
             let gathering_id: UUID
             let reported_user_id: UUID
             let reason: String
         }
+        // Reporters can't read reports back, so the ID is chosen here to tell moderators about it.
+        let id = UUID()
         try await client.from("reports")
-            .insert(Report(gathering_id: gathering.id, reported_user_id: gathering.hostID, reason: reason))
+            .insert(Report(id: id, gathering_id: gathering.id, reported_user_id: gathering.hostID, reason: reason))
             .execute()
+        struct Alert: Encodable {
+            let type: String
+            let report_id: UUID
+        }
+        try? await client.functions.invoke(
+            "gathering-alerts",
+            options: FunctionInvokeOptions(body: Alert(type: "reported", report_id: id))
+        )
     }
 
     func block(userID: UUID) async throws {
@@ -210,6 +227,11 @@ extension Error {
     var userMessage: String {
         if let error = self as? PostgrestError { return error.message }
         if let error = self as? AuthError { return error.message }
+        if case let .httpError(_, data) = self as? FunctionsError,
+           let body = try? JSONDecoder().decode([String: String].self, from: data),
+           let message = body["error"] {
+            return message
+        }
         if (self as? URLError) != nil { return "You appear to be offline. Check your connection and try again." }
         return localizedDescription
     }

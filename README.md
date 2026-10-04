@@ -58,6 +58,40 @@ supabase functions deploy gathering-alerts --project-ref <ref>
 Debug builds register their device token as `sandbox` and release builds as `production`, and the
 function sends each to the matching APNs server.
 
+3. Account deletion revokes Sign in with Apple, as Apple requires. Create a second key with
+   **Sign in with Apple** enabled (primary App ID `com.suryanediyadeth.offhours`), then:
+
+```sh
+supabase secrets set --project-ref <ref> \
+  SIWA_KEY_ID=<key id> SIWA_PRIVATE_KEY="$(cat AuthKey_YYYY.p8)"
+supabase functions deploy delete-account --project-ref <ref>
+```
+
+Without these secrets accounts are still deleted, but the app stays listed under the user's
+Apple ID settings.
+
+### Moderation
+
+Every gathering and host can be reported from the app. Moderators get a push for each report and
+should act within 24 hours (App Store guideline 1.2). Add yourself once in the SQL editor:
+
+```sql
+insert into moderation.moderators (user_id) values ('<your user id from auth.users>');
+```
+
+Then work the queue from the SQL editor. These functions aren't reachable from the app:
+
+```sql
+select * from moderation.open_reports;
+select moderation.hide_gathering('<gathering id>', 'Spam');
+select moderation.ban_user('<user id>', 'Harassment');   -- cancels their gatherings, signs them out
+select moderation.unban_user('<user id>');
+select moderation.resolve_report('<report id>', 'No action needed');
+```
+
+Hosts can create up to 3 gatherings a day, have up to 5 upcoming, and schedule up to 30 days
+ahead. People can file up to 10 reports a day.
+
 ### 3. App secrets
 
 ```sh
@@ -100,7 +134,7 @@ supabase/tests/run.sh
    Other User Content, all linked to the user, used for app functionality, not used for tracking.
    This matches `PrivacyInfo.xcprivacy`.
 4. Review notes: give the reviewer a test Apple ID or explain that sign-in is Apple-only, and
-   mention that reports are reviewed in the Supabase `reports` table within 24 hours.
+   mention that moderators are notified of every report and act on it within 24 hours.
 5. Product → Archive in Xcode, then upload to TestFlight.
 
 Regenerate the app icon with `swift ios/Tools/MakeIcon.swift ios/OffHours/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png`.

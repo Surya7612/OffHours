@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SettingsView: View {
@@ -13,6 +14,7 @@ struct SettingsView: View {
     @State private var isSaving = false
     @State private var confirmSignOut = false
     @State private var confirmDelete = false
+    @State private var confirmWithApple = false
     @State private var isDeleting = false
     @State private var isTogglingAlerts = false
     @State private var errorMessage: String?
@@ -81,7 +83,11 @@ struct SettingsView: View {
                     Button("Delete account", role: .destructive) { confirmDelete = true }
                         .disabled(isDeleting)
                 } footer: {
-                    Text("Deleting your account permanently removes your profile, journal, gatherings and RSVPs.")
+                    if isDeleting {
+                        Text("Deleting your account…")
+                    } else {
+                        Text("Deleting your account permanently removes your profile, journal, gatherings and RSVPs.")
+                    }
                 }
 
                 if let errorMessage {
@@ -122,9 +128,16 @@ struct SettingsView: View {
                 }
             }
             .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete permanently", role: .destructive) { Task { await deleteAccount() } }
+                Button("Continue", role: .destructive) { confirmWithApple = true }
             } message: {
                 Text("This can't be undone.")
+            }
+            .sheet(isPresented: $confirmWithApple) {
+                DeleteAccountConfirmation { code in
+                    confirmWithApple = false
+                    Task { await deleteAccount(appleAuthorizationCode: code) }
+                }
+                .presentationDetents([.medium])
             }
         }
     }
@@ -180,12 +193,12 @@ struct SettingsView: View {
         }
     }
 
-    private func deleteAccount() async {
+    private func deleteAccount(appleAuthorizationCode: String) async {
         isDeleting = true
         errorMessage = nil
         defer { isDeleting = false }
         do {
-            try await model.deleteAccount()
+            try await model.deleteAccount(appleAuthorizationCode: appleAuthorizationCode)
             dismiss()
         } catch {
             errorMessage = error.userMessage
@@ -196,6 +209,48 @@ struct SettingsView: View {
         if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
             openURL(url)
         }
+    }
+}
+
+/// Asks the person to confirm with Apple, which also gives the server a code to revoke the
+/// app's Sign in with Apple access.
+private struct DeleteAccountConfirmation: View {
+    let onConfirmed: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Confirm it's you")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+            Text("Your profile, journal, gatherings and RSVPs will be deleted, and OffHours will be removed from the apps using your Apple ID.")
+                .foregroundStyle(.secondary)
+            if let errorMessage {
+                Text(errorMessage).font(.footnote).foregroundStyle(.red)
+            }
+            Spacer()
+            SignInWithAppleButton(.continue) { request in
+                request.requestedScopes = []
+            } onCompletion: { result in
+                switch result {
+                case .success(let authorization):
+                    guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                          let data = credential.authorizationCode,
+                          let code = String(data: data, encoding: .utf8) else {
+                        errorMessage = "Apple didn't confirm your account. Please try again."
+                        return
+                    }
+                    onConfirmed(code)
+                case .failure(let error):
+                    if (error as? ASAuthorizationError)?.code != .canceled {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 50)
+        }
+        .padding(24)
     }
 }
 
