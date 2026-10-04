@@ -47,8 +47,9 @@ points you to a real place nearby to do it, and lets neighbors host small gather
 ### 1. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run every file in `supabase/migrations/` in order
-   (or `supabase db push` with the Supabase CLI). The app expects all of them.
+2. In the SQL editor, run every file in `supabase/migrations/` in filename order (or
+   `supabase db push` with the Supabase CLI). The app expects all of them. The last two are safe
+   to run again if one stops partway.
 3. **Authentication → Sign In / Providers → Apple**: enable it and add
    `com.suryanediyadeth.offhours` under *Client IDs*. Native sign-in doesn't need the secret key.
 4. **Project Settings → API**: copy the project URL host and the anon (publishable) key.
@@ -161,12 +162,26 @@ supabase/tests/run.sh
    [Surya7612/offhours-legal](https://github.com/Surya7612/offhours-legal) at
    <https://surya7612.github.io/offhours-legal/>. After editing them, copy the folder over and push
    that repo.
-2. In App Store Connect create the app with bundle ID `com.suryanediyadeth.offhours`.
+2. The App Store Connect record exists: bundle ID `com.suryanediyadeth.offhours`, Apple ID
+   `6819096557` (set as `AppConfig.appStoreID`, used for share links), category Lifestyle.
 3. Privacy nutrition label: Name, Email, User ID, Device ID (push token), Coarse Location and
    Other User Content, all linked to the user, used for app functionality, not used for tracking.
    This matches `PrivacyInfo.xcprivacy`.
 4. Review notes: give the reviewer a test Apple ID or explain that sign-in is Apple-only, and
    mention that moderators are notified of every report and act on it within 24 hours.
-5. Product → Archive in Xcode, then upload to TestFlight.
+5. Bump `MARKETING_VERSION` in `ios/project.yml` for a new version (build numbers are bumped
+   automatically on upload), then archive and upload from the command line:
+
+```sh
+cd ios
+xcodebuild archive -project OffHours.xcodeproj -scheme OffHours -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/OffHours.xcarchive \
+  -allowProvisioningUpdates -clonedSourcePackagesDirPath ../.spm
+xcodebuild -exportArchive -archivePath /tmp/OffHours.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath /tmp/OffHoursExport -allowProvisioningUpdates
+```
+
+   Or use Product → Archive in Xcode and Distribute App. The build shows up in TestFlight once
+   Apple finishes processing it.
 
 Regenerate the app icon with `swift ios/Tools/MakeIcon.swift ios/OffHours/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png`.
