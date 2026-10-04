@@ -1,0 +1,6 @@
+// Real values live in Secrets.xcconfig, which is git-ignored.
+// Copy Secrets.example.xcconfig to Secrets.xcconfig and fill it in.
+SUPABASE_HOST =
+SUPABASE_ANON_KEY =
+
+#include? "Secrets.xcconfig"
