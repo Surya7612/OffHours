@@ -22,7 +22,7 @@ enum AppConfig {
     static let supportEmail = "connect@suryanediyadeth.com"
     /// The numeric Apple ID from App Store Connect (App Information). Until it's set, shared
     /// gatherings link to the website instead of the App Store.
-    static let appStoreID = ""
+    static let appStoreID = "6819096557"
     static var downloadURL: URL {
         appStoreID.isEmpty
             ? URL(string: "https://surya7612.github.io/offhours-legal/")!
