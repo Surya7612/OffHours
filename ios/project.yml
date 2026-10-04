@@ -42,6 +42,8 @@ targets:
       path: OffHours/Info.plist
       properties:
         CFBundleDisplayName: OffHours
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.healthcare-fitness
         UILaunchScreen:
           UIColorName: LaunchBackground
