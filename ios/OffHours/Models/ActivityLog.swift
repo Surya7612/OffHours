@@ -31,6 +31,8 @@ struct NewActivityLog: Encodable, Sendable {
     var durationMinutes: Int
     var placeName: String?
     var reflection: String?
+    /// Defaults to now on the server when left out.
+    var completedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case activityID = "activity_id"
@@ -39,6 +41,31 @@ struct NewActivityLog: Encodable, Sendable {
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"
         case reflection
+        case completedAt = "completed_at"
+    }
+}
+
+/// The seven days ending at a moment, for the Sunday recap and the widget.
+struct WeekSummary: Equatable, Sendable {
+    var moments: Int
+    var minutes: Int
+    var days: Int
+
+    init(logs: [ActivityLog], endingAt end: Date = .now, calendar: Calendar = .current) {
+        let start = end.addingTimeInterval(-7 * 24 * 60 * 60)
+        let week = logs.filter { $0.completedAt > start && $0.completedAt <= end }
+        moments = week.count
+        minutes = week.reduce(0) { $0 + $1.durationMinutes }
+        days = Set(week.map { calendar.startOfDay(for: $0.completedAt) }).count
+    }
+
+    var recapText: String {
+        guard moments > 0 else {
+            return "A quiet week. Tonight is a good night to start again, even for ten minutes."
+        }
+        let time = Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .wide))
+        let evenings = days == 1 ? "1 evening" : "\(days) evenings"
+        return "\(evenings) offline, \(time) in total. Keep it going this week."
     }
 }
 

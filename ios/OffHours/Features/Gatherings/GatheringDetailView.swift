@@ -15,6 +15,8 @@ struct GatheringDetailView: View {
     @State private var attendees: [Attendee] = []
     @State private var editingSpot = false
     @State private var spotDraft = ""
+    @State private var otherDates: [Gathering] = []
+    @State private var didReport = false
 
     private var isHost: Bool { gathering.hostID == app.userID }
 
@@ -47,6 +49,9 @@ struct GatheringDetailView: View {
                         .font(.system(.title, design: .serif, weight: .semibold))
                     Text("Hosted by \(isHost ? "you" : gathering.hostName)")
                         .foregroundStyle(.secondary)
+                    if gathering.seriesID != nil {
+                        Tag(text: "Repeats weekly", color: Theme.ember)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
@@ -93,6 +98,10 @@ struct GatheringDetailView: View {
                     attendeeList
                 }
 
+                if !otherDates.isEmpty {
+                    otherDatesList
+                }
+
                 if !gathering.details.isEmpty {
                     Text(gathering.details)
                         .card()
@@ -115,8 +124,14 @@ struct GatheringDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            guard isHost, let backend = app.backend else { return }
-            attendees = (try? await backend.attendees(gatheringID: gathering.id)) ?? []
+            guard let backend = app.backend else { return }
+            if let seriesID = gathering.seriesID {
+                let dates = (try? await backend.seriesDates(seriesID: seriesID)) ?? []
+                otherDates = dates.filter { $0.id != gathering.id && !$0.hasEnded }
+            }
+            if isHost {
+                attendees = (try? await backend.attendees(gatheringID: gathering.id)) ?? []
+            }
         }
         .alert("Meeting spot", isPresented: $editingSpot) {
             TextField("By the fountain, red umbrella", text: $spotDraft)
@@ -140,10 +155,12 @@ struct GatheringDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showReport) {
+        .sheet(isPresented: $showReport, onDismiss: {
+            if didReport { dismiss() }
+        }) {
             ReportSheet { reason in
                 try await model.report(gathering, reason: reason, app: app)
-                dismiss()
+                didReport = true
             }
         }
         .confirmationDialog("Block \(gathering.hostName)?", isPresented: $confirmBlock, titleVisibility: .visible) {
@@ -157,16 +174,51 @@ struct GatheringDetailView: View {
             Text("You won't see their gatherings, and they can't join yours.")
         }
         .confirmationDialog("Cancel this gathering?", isPresented: $confirmCancel, titleVisibility: .visible) {
-            Button("Cancel gathering", role: .destructive) {
+            Button(otherDates.isEmpty ? "Cancel gathering" : "Cancel this date", role: .destructive) {
                 perform {
                     try await model.cancel(gathering, app: app)
                     dismiss()
                 }
             }
+            if !otherDates.isEmpty {
+                Button("Cancel all upcoming dates", role: .destructive) {
+                    perform {
+                        try await model.cancelSeries(of: gathering, app: app)
+                        dismiss()
+                    }
+                }
+            }
             Button("Keep it", role: .cancel) {}
         } message: {
-            Text("It will disappear for everyone who joined.")
+            Text("Everyone who joined will be told it's off.")
         }
+    }
+
+    private var otherDatesList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Other dates")
+                .font(.headline)
+            ForEach(otherDates) { date in
+                Button {
+                    app.openGathering(date.id)
+                } label: {
+                    HStack {
+                        Text(date.startsAt, format: .dateTime.weekday(.wide).month().day().hour().minute())
+                        Spacer()
+                        Text(date.isFull ? "Full" : "\(date.spotsLeft) left")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
     }
 
     private var attendeeList: some View {
@@ -194,7 +246,7 @@ struct GatheringDetailView: View {
     }
 
     private func saveSpot() {
-        let note = String(spotDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(140))
+        let note = spotDraft.trimmingCharacters(in: .whitespacesAndNewlines).clipped(to: 140)
         if let problem = ContentFilter.problem(in: note) {
             errorMessage = problem
             return
@@ -330,7 +382,7 @@ private struct ReportSheet: View {
         Task {
             defer { isSending = false }
             do {
-                try await onSubmit(String(full.prefix(500)))
+                try await onSubmit(full.clipped(to: 500))
                 dismiss()
             } catch {
                 errorMessage = error.userMessage

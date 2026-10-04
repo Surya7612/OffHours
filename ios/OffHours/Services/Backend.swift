@@ -24,8 +24,9 @@ struct Backend: Sendable {
         )
     }
 
+    /// Signs out on this device only, so someone's other devices stay signed in.
     func signOut() async throws {
-        try await client.auth.signOut()
+        try await client.auth.signOut(scope: .local)
     }
 
     /// The authorization code comes from a fresh Sign in with Apple prompt, so the server can
@@ -61,7 +62,27 @@ struct Backend: Sendable {
             .value
     }
 
+    /// Updates only the alert location, and only while alerts are still on.
+    func updateAlertLocation(userID: UUID, latitude: Double, longitude: Double) async throws -> Profile? {
+        struct Location: Encodable {
+            let alert_lat: Double
+            let alert_lng: Double
+        }
+        let rows: [Profile] = try await client.from("profiles")
+            .update(Location(alert_lat: latitude, alert_lng: longitude))
+            .eq("id", value: userID)
+            .eq("gathering_alerts", value: true)
+            .select()
+            .execute()
+            .value
+        return rows.first
+    }
+
     // MARK: Journal
+
+    func gatheringsToLog() async throws -> [GatheringToLog] {
+        try await client.rpc("gatherings_to_log").execute().value
+    }
 
     func activityLogs(limit: Int = 500) async throws -> [ActivityLog] {
         try await client.from("activity_logs")
@@ -156,21 +177,39 @@ struct Backend: Sendable {
         try await client.rpc("my_upcoming_gatherings").execute().value
     }
 
-    func create(_ gathering: NewGathering) async throws -> Gathering {
-        var created: Gathering = try await client.from("gatherings")
-            .insert(gathering)
+    /// Creates one gathering, or every date of a weekly one in a single request.
+    func create(_ dates: [NewGathering]) async throws -> [Gathering] {
+        let created: [Gathering] = try await client.from("gatherings")
+            .insert(dates)
             .select()
-            .single()
             .execute()
             .value
-        created.isGoing = true
-        created.attendeeCount = max(created.attendeeCount, 1)
         return created
+            .map { gathering in
+                var gathering = gathering
+                gathering.isGoing = true
+                gathering.attendeeCount = max(gathering.attendeeCount, 1)
+                return gathering
+            }
+            .sorted { $0.startsAt < $1.startsAt }
     }
 
+    /// The other upcoming dates of a weekly gathering.
+    func seriesDates(seriesID: UUID) async throws -> [Gathering] {
+        try await client.from("gatherings")
+            .select()
+            .eq("series_id", value: seriesID)
+            .eq("cancelled", value: false)
+            .gt("starts_at", value: Date.now.addingTimeInterval(-6 * 60 * 60))
+            .order("starts_at")
+            .execute()
+            .value
+    }
+
+    /// Safe to call twice: joining a gathering you already joined does nothing.
     func join(gatheringID: UUID) async throws {
         try await client.from("gathering_rsvps")
-            .insert(["gathering_id": gatheringID])
+            .upsert(["gathering_id": gatheringID], onConflict: "gathering_id,user_id", ignoreDuplicates: true)
             .execute()
     }
 
@@ -192,6 +231,20 @@ struct Backend: Sendable {
             .update(["meeting_note": note])
             .eq("id", value: gatheringID)
             .execute()
+    }
+
+    /// Cancels every date of a weekly gathering that hasn't started yet, and returns their IDs.
+    func cancelSeries(seriesID: UUID) async throws -> [UUID] {
+        struct Row: Decodable { let id: UUID }
+        let rows: [Row] = try await client.from("gatherings")
+            .update(["cancelled": true])
+            .eq("series_id", value: seriesID)
+            .eq("cancelled", value: false)
+            .gt("starts_at", value: Date.now)
+            .select("id")
+            .execute()
+            .value
+        return rows.map(\.id)
     }
 
     func cancel(gatheringID: UUID) async throws {

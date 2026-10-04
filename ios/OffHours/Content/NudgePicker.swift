@@ -18,7 +18,9 @@ enum NudgePicker {
 
         return pool
             .map { activity -> (Activity, Double) in
-                var score = Double(activity.interests.intersection(interests).count) * 10
+                // Extra matches count for less, so a few many-interest activities don't win every day.
+                let matches = activity.interests.intersection(interests).count
+                var score = matches > 0 ? 10 + Double(matches - 1) * 3 : 0
                 if activity.minutes <= 30 { score += 3 }
                 score += Double.random(in: 0..<14, using: &rng)
                 return (activity, score)

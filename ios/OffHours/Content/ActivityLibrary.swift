@@ -244,6 +244,304 @@ enum ActivityLibrary {
             interests: [.community],
             times: [.morning, .afternoon, .evening]
         ),
+        Activity(
+            id: "sunrise-sit",
+            title: "Watch the day start",
+            summary: "Get outside before your phone does. Sit somewhere with a view of the sky and watch it brighten for 15 minutes.",
+            kind: .nature, minutes: 15,
+            interests: [.nature, .meditation],
+            times: [.morning],
+            place: .park
+        ),
+        Activity(
+            id: "morning-pages",
+            title: "Morning pages",
+            summary: "Before you look at a screen, fill one page by hand with whatever is on your mind. Don't reread it.",
+            kind: .mindful, minutes: 15,
+            interests: [.journaling, .writing],
+            times: [.morning],
+            bring: ["Notebook", "Pen"]
+        ),
+        Activity(
+            id: "bird-count",
+            title: "Count the birds",
+            summary: "Sit in a park for 20 minutes and count every bird you see or hear. Try to tell at least two kinds apart.",
+            kind: .nature, minutes: 20,
+            interests: [.nature, .walking],
+            times: [.morning, .afternoon],
+            place: .park
+        ),
+        Activity(
+            id: "barefoot-grass",
+            title: "Barefoot on the grass",
+            summary: "Find a patch of grass, take your shoes off, and stand or walk slowly for ten minutes. Notice the temperature and texture.",
+            kind: .nature, minutes: 10,
+            interests: [.nature, .meditation, .movement],
+            times: [.morning, .afternoon, .evening],
+            place: .park
+        ),
+        Activity(
+            id: "cloud-watch",
+            title: "Cloud watching",
+            summary: "Lie on the grass or a bench and watch the clouds for 15 minutes. Find at least one shape.",
+            kind: .nature, minutes: 15,
+            interests: [.nature, .meditation],
+            times: [.afternoon],
+            place: .park
+        ),
+        Activity(
+            id: "new-street",
+            title: "Walk a street you've never walked",
+            summary: "Pick a nearby street you've never been down and walk its whole length. Look up at the buildings, not down at a screen.",
+            kind: .movement, minutes: 30,
+            interests: [.walking, .photography],
+            times: [.morning, .afternoon, .evening]
+        ),
+        Activity(
+            id: "water-skip",
+            title: "Skip stones",
+            summary: "Head to the water and try to skip a stone five times. Take as long as it takes.",
+            kind: .nature, minutes: 20,
+            interests: [.nature, .movement],
+            times: [.afternoon, .evening],
+            place: .waterfront
+        ),
+        Activity(
+            id: "waterfront-walk",
+            title: "Walk along the water",
+            summary: "Walk along the shore or the river for half an hour. Match your steps to the sound of the water.",
+            kind: .movement, minutes: 30,
+            interests: [.walking, .nature],
+            times: [.morning, .afternoon, .evening],
+            place: .waterfront
+        ),
+        Activity(
+            id: "moon-walk",
+            title: "Moonlight walk",
+            summary: "Take a short walk around your block after dark. Notice which windows are lit and how quiet it gets.",
+            kind: .movement, minutes: 20,
+            interests: [.walking, .meditation],
+            times: [.night]
+        ),
+        Activity(
+            id: "cafe-people",
+            title: "Café sketchbook",
+            summary: "Sit in a café and draw the cups, chairs and plants around you for 25 minutes. Leave people out if that feels odd.",
+            kind: .creative, minutes: 25,
+            interests: [.art, .coffeeAndTea],
+            times: [.morning, .afternoon],
+            place: .cafe,
+            bring: ["Sketchbook", "Pen"]
+        ),
+        Activity(
+            id: "cafe-plan",
+            title: "Plan a day off, on paper",
+            summary: "At a café, plan a whole screen-free day for this month: where you'd go, what you'd eat, who you'd see.",
+            kind: .mindful, minutes: 30,
+            interests: [.journaling, .coffeeAndTea],
+            times: [.morning, .afternoon, .evening],
+            place: .cafe,
+            bring: ["Notebook", "Pen"]
+        ),
+        Activity(
+            id: "library-magazine",
+            title: "Read a magazine you'd never buy",
+            summary: "At the library, pick a magazine on a subject you know nothing about and read one article all the way through.",
+            kind: .mindful, minutes: 25,
+            interests: [.reading],
+            times: [.afternoon, .evening],
+            place: .library
+        ),
+        Activity(
+            id: "library-write",
+            title: "Write in the library",
+            summary: "Find a quiet table and write for half an hour: a story, a memory, a plan. The quiet does half the work.",
+            kind: .creative, minutes: 30,
+            interests: [.writing, .reading],
+            times: [.afternoon, .evening],
+            place: .library,
+            bring: ["Notebook", "Pen"]
+        ),
+        Activity(
+            id: "museum-sketch",
+            title: "Sketch in a museum",
+            summary: "Pick one sculpture or object and sketch it for 20 minutes. You'll notice details you'd never see walking past.",
+            kind: .creative, minutes: 30,
+            interests: [.art],
+            times: [.afternoon],
+            place: .museum,
+            bring: ["Paper", "Pencil"]
+        ),
+        Activity(
+            id: "museum-room",
+            title: "One room, slowly",
+            summary: "Choose a single room in a museum and see everything in it. Read every label. Skip the rest of the building.",
+            kind: .mindful, minutes: 40,
+            interests: [.art, .reading],
+            times: [.afternoon, .evening],
+            place: .museum
+        ),
+        Activity(
+            id: "board-game",
+            title: "Play a board game",
+            summary: "Dig out a board game or a deck of cards and play one round with whoever is around. Phones stay in another room.",
+            kind: .social, minutes: 45,
+            interests: [.conversation, .community],
+            times: [.evening, .night]
+        ),
+        Activity(
+            id: "ask-a-question",
+            title: "One real question",
+            summary: "Ask someone close to you a question you've never asked, like what they wanted to be as a kid. Then just listen.",
+            kind: .social, minutes: 20,
+            interests: [.conversation],
+            times: [.afternoon, .evening, .night]
+        ),
+        Activity(
+            id: "coffee-invite",
+            title: "Invite someone for coffee",
+            summary: "Ask one person to meet you for coffee this week. When you go, keep your phone in your bag the whole time.",
+            kind: .social, minutes: 30,
+            interests: [.conversation, .coffeeAndTea],
+            times: [.morning, .afternoon],
+            place: .cafe
+        ),
+        Activity(
+            id: "family-recipe",
+            title: "Ask for a family recipe",
+            summary: "Call a parent, grandparent or old friend and ask them to talk you through a dish they used to make. Write it down by hand.",
+            kind: .social, minutes: 30,
+            interests: [.cooking, .conversation, .writing],
+            times: [.afternoon, .evening]
+        ),
+        Activity(
+            id: "bake-share",
+            title: "Bake something to share",
+            summary: "Bake something simple, like cookies or banana bread, and give half to a neighbor or coworker.",
+            kind: .community, minutes: 60,
+            interests: [.cooking, .community],
+            times: [.afternoon, .evening]
+        ),
+        Activity(
+            id: "little-library",
+            title: "Leave a book for someone",
+            summary: "Pick a book you loved, write a short note inside, and leave it at a little free library or a café shelf.",
+            kind: .community, minutes: 20,
+            interests: [.reading, .community, .writing],
+            times: [.morning, .afternoon, .evening],
+            bring: ["A book you're done with"]
+        ),
+        Activity(
+            id: "litter-walk",
+            title: "Ten-piece cleanup",
+            summary: "Take a bag on your walk and pick up ten pieces of litter. Your street will look a little better tomorrow.",
+            kind: .community, minutes: 20,
+            interests: [.community, .walking, .nature],
+            times: [.morning, .afternoon, .evening],
+            place: .park,
+            bring: ["A bag", "Gloves"]
+        ),
+        Activity(
+            id: "thank-you-note",
+            title: "Thank someone properly",
+            summary: "Write a short note to someone who helped you this year: a teacher, a coworker, a barista. Hand it over or mail it.",
+            kind: .community, minutes: 15,
+            interests: [.writing, .community, .conversation],
+            times: [.morning, .afternoon, .evening],
+            bring: ["Card or paper", "Pen"]
+        ),
+        Activity(
+            id: "candle-sit",
+            title: "Sit with a candle",
+            summary: "Turn off the lights, light a candle, and watch the flame for ten minutes. When your mind drifts, come back to it.",
+            kind: .mindful, minutes: 10,
+            interests: [.meditation],
+            times: [.evening, .night]
+        ),
+        Activity(
+            id: "phone-sunset",
+            title: "Put the phone to bed",
+            summary: "Plug your phone in outside the bedroom an hour before sleep. Spend the hour on anything with paper or people.",
+            kind: .mindful, minutes: 60,
+            interests: [.reading, .meditation, .journaling],
+            times: [.night]
+        ),
+        Activity(
+            id: "tomorrow-list",
+            title: "Tomorrow, on one card",
+            summary: "Write the three things that matter tomorrow on an index card. Leave it by the door so it's the first thing you see.",
+            kind: .mindful, minutes: 10,
+            interests: [.journaling, .writing],
+            times: [.evening, .night],
+            bring: ["Card or paper", "Pen"]
+        ),
+        Activity(
+            id: "tidy-one-drawer",
+            title: "Tidy one drawer",
+            summary: "Empty one drawer, wipe it out, and put back only what you use. It's small, finished, and oddly calming.",
+            kind: .mindful, minutes: 15,
+            interests: [.meditation],
+            times: [.morning, .afternoon, .evening]
+        ),
+        Activity(
+            id: "plant-care",
+            title: "Care for a plant",
+            summary: "Water, prune or repot a plant, slowly. If you don't have one, pick one up on the way home.",
+            kind: .nature, minutes: 15,
+            interests: [.nature],
+            times: [.morning, .afternoon, .evening, .night]
+        ),
+        Activity(
+            id: "instrument",
+            title: "Play something",
+            summary: "Pick up an instrument, even one you barely play, and spend 20 minutes on one song or a single scale.",
+            kind: .creative, minutes: 20,
+            interests: [.music],
+            times: [.afternoon, .evening]
+        ),
+        Activity(
+            id: "sing-along",
+            title: "Sing three songs",
+            summary: "Sing three songs out loud, in the shower or the car or the kitchen. Loud is better.",
+            kind: .creative, minutes: 10,
+            interests: [.music],
+            times: [.morning, .afternoon, .evening]
+        ),
+        Activity(
+            id: "collage",
+            title: "Make a tiny collage",
+            summary: "Cut pictures and words out of old magazines or mail and glue them into a postcard-sized collage.",
+            kind: .creative, minutes: 30,
+            interests: [.art],
+            times: [.afternoon, .evening, .night],
+            bring: ["Old magazines", "Scissors", "Glue"]
+        ),
+        Activity(
+            id: "memory-write",
+            title: "Write down one memory",
+            summary: "Pick one ordinary day from your childhood and write everything you remember about it: smells, sounds, who was there.",
+            kind: .creative, minutes: 20,
+            interests: [.writing, .journaling],
+            times: [.evening, .night],
+            bring: ["Notebook", "Pen"]
+        ),
+        Activity(
+            id: "wall-sit-push",
+            title: "Five-minute strength",
+            summary: "Do a slow set of squats, push-ups against a wall, and a plank. Five minutes is plenty if it's done with care.",
+            kind: .movement, minutes: 10,
+            interests: [.movement],
+            times: [.morning, .afternoon, .evening]
+        ),
+        Activity(
+            id: "park-jog",
+            title: "Easy loop jog",
+            summary: "Jog one slow loop of a park, slow enough to hold a conversation. Walk whenever you want.",
+            kind: .movement, minutes: 25,
+            interests: [.movement, .walking, .nature],
+            times: [.morning, .afternoon, .evening],
+            place: .park
+        ),
     ]
 
     static func activity(id: String) -> Activity? {

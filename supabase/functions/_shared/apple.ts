@@ -46,6 +46,8 @@ export type PushAlert = {
   body: string;
   threadID: string;
   gatheringID?: string | null;
+  /** Lets the app react without the person opening it, e.g. "cancelled" clears the reminder. */
+  kind?: string;
 };
 
 let cachedProviderToken: { value: string; issuedAt: number } | undefined;
@@ -86,8 +88,10 @@ export async function sendPush(
           alert: { title: alert.title, body: alert.body },
           sound: "default",
           "thread-id": alert.threadID,
+          ...(alert.kind ? { "content-available": 1 } : {}),
         },
         ...(alert.gatheringID ? { gathering_id: alert.gatheringID } : {}),
+        ...(alert.kind ? { kind: alert.kind } : {}),
       }),
     });
     if (response.ok) return true;

@@ -87,6 +87,8 @@ Deno.serve(async (request) => {
       title: `Cancelled: ${gathering.title}`,
       body: `${gathering.host_name} cancelled this gathering. No need to head to ${gathering.place_name}.`,
       threadID: `gathering-${gathering.id}`,
+      gatheringID: gathering.id,
+      kind: "cancelled",
     }, forgetDevice);
     return json({ sent });
   }

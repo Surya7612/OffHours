@@ -26,20 +26,26 @@ that work, we never sell your data, and we don't use it for advertising or track
 
 - **Your precise location.** It's used on your device to find nearby places through Apple Maps
   and is sent to our server only to look up gatherings near you. It is not saved.
+- **Weather lookups.** To suggest indoor activities on rainy or very cold evenings, the app asks
+  Apple Weather for the conditions at your location. Apple receives that location to answer, but
+  it isn't linked to you or your Apple ID, and we never see it. Sunset times are worked out on
+  your device.
+- **What the widget and Lock Screen show.** Tonight's suggestion, your streak and the session
+  timer are kept on your device for the widget and Live Activity, and are cleared when you sign out.
 - Contacts, photos, health data, or advertising identifiers.
 
 ## Who can see what
 
 - Your journal and profile are visible only to you. Nobody else can see your approximate location.
 - If you host a gathering, people nearby can see its details and your first name.
-- Hosts can see how many people have joined their gathering, and get a notification with the
-  first name of each person who joins.
+- Hosts can see the first names of the people who joined their gathering, and get a
+  notification when someone joins.
 - Reports are visible only to the OffHours team.
 
 ## Where data lives
 
 Data is stored with Supabase (database and authentication). Place search runs through Apple Maps,
-and notifications are delivered through Apple Push Notification service. None of them receive
+weather comes from Apple Weather, and notifications are delivered through Apple Push Notification service. None of them receive
 anything beyond what's needed to provide those features.
 
 ## Deleting your data

@@ -27,17 +27,22 @@ targets:
       - path: OffHours
         excludes:
           - "Config/*.xcconfig"
+      - path: Shared
     configFiles:
       Debug: OffHours/Config/Config.xcconfig
       Release: OffHours/Config/Config.xcconfig
     dependencies:
       - package: Supabase
+      - target: OffHoursWidgets
     entitlements:
       path: OffHours/OffHours.entitlements
       properties:
         com.apple.developer.applesignin:
           - Default
         aps-environment: development
+        com.apple.developer.weatherkit: true
+        com.apple.security.application-groups:
+          - group.com.suryanediyadeth.offhours
     info:
       path: OffHours/Info.plist
       properties:
@@ -51,6 +56,9 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        UIBackgroundModes:
+          - remote-notification
         NSLocationWhenInUseUsageDescription: OffHours uses your location to suggest real places near you for tonight's activity and to show gatherings in your neighborhood.
         SupabaseHost: $(SUPABASE_HOST)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
@@ -62,6 +70,33 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_PREVIEWS: true
         SWIFT_STRICT_CONCURRENCY: complete
+
+  OffHoursWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OffHoursWidgets
+      - path: Shared
+    entitlements:
+      path: OffHoursWidgets/OffHoursWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.suryanediyadeth.offhours
+    info:
+      path: OffHoursWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: OffHours
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.suryanediyadeth.offhours.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_STRICT_CONCURRENCY: complete
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+        SKIP_INSTALL: true
 
   OffHoursTests:
     type: bundle.unit-test

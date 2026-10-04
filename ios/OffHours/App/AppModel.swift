@@ -40,7 +40,12 @@ final class AppModel {
     var selectedTab: AppTab = .tonight
     /// Set by notification taps and the Tonight screen; the Gatherings tab opens it.
     var gatheringToOpen: UUID?
+    /// Goes up each time the app comes back to the foreground, so screens can reload with `.task(id:)`.
+    private(set) var activations = 0
     private var isUpdatingAlertLocation = false
+    /// True when the profile came from the offline cache and still needs a real fetch.
+    private var isUsingCachedProfile = false
+    private var nudgeTask: Task<Void, Never>?
 
     let backend: Backend?
     let location = LocationService()
@@ -82,11 +87,15 @@ final class AppModel {
             phase = .signedOut
             return
         }
+        if let previous = userID, previous != session.user.id {
+            clearLocalState()
+        }
         userID = session.user.id
         do {
             if let remote = try await backend.profile(id: session.user.id) {
                 profile = remote
                 ProfileCache.save(remote)
+                isUsingCachedProfile = false
                 phase = .ready
                 await startPush()
                 await refreshJournal()
@@ -97,7 +106,9 @@ final class AppModel {
         } catch {
             if let cached = ProfileCache.load(userID: session.user.id) {
                 profile = cached
+                isUsingCachedProfile = true
                 phase = .ready
+                await refreshJournal()
             } else {
                 phase = .failed(error.userMessage)
             }
@@ -106,8 +117,13 @@ final class AppModel {
 
     func didBecomeActive() async {
         guard phase == .ready else { return }
-        await refreshJournal()
-        await syncGatheringReminders()
+        if isUsingCachedProfile, let session = backend?.client.auth.currentSession {
+            await apply(session: session)
+        } else {
+            await refreshJournal()
+            await syncGatheringReminders()
+        }
+        activations += 1
     }
 
     private func syncGatheringReminders() async {
@@ -127,6 +143,7 @@ final class AppModel {
         if let token = PushRegistrar.shared.token {
             try? await backend?.unregisterDevice(token: token)
         }
+        PushRegistrar.shared.unregister()
         try? await backend?.signOut()
         clearLocalState()
         phase = .signedOut
@@ -141,14 +158,18 @@ final class AppModel {
 
     private func clearLocalState() {
         if let userID { ProfileCache.clear(userID: userID) }
+        nudgeTask?.cancel()
         NotificationScheduler.removeAll()
         PushRegistrar.shared.onToken = nil
+        if userID != nil { PushRegistrar.shared.unregister() }
+        WidgetBridge.clear()
         userID = nil
         profile = nil
         logs = []
         stats = .empty
         selectedTab = .tonight
         gatheringToOpen = nil
+        isUsingCachedProfile = false
     }
 
     // MARK: Push
@@ -166,6 +187,22 @@ final class AppModel {
     func openGathering(_ id: UUID) {
         selectedTab = .gatherings
         gatheringToOpen = id
+    }
+
+    func handleNotificationTap(_ payload: NotificationPayload) {
+        switch (payload.kind, payload.open, payload.gatheringID) {
+        case ("cancelled", _, let id?):
+            NotificationScheduler.cancelReminder(for: id)
+            selectedTab = .gatherings
+        case (_, "journal", _):
+            selectedTab = .journal
+        case (_, "tonight", _):
+            selectedTab = .tonight
+        case (_, _, let id?):
+            openGathering(id)
+        default:
+            break
+        }
     }
 
     func setGatheringAlerts(_ enabled: Bool) async throws {
@@ -186,18 +223,21 @@ final class AppModel {
     }
 
     /// Keeps the rough alert location current when someone moves more than about a kilometer.
+    /// Only touches the location columns, so it can't undo a change saved from Settings meanwhile.
     func noteLocation(_ location: CLLocation) async {
-        guard var draft = profile, draft.gatheringAlerts, !isUpdatingAlertLocation else { return }
+        guard let backend, let current = profile, current.gatheringAlerts, !isUpdatingAlertLocation else { return }
         let lat = location.coordinate.latitude
         let lng = location.coordinate.longitude
-        if let oldLat = draft.alertLat, let oldLng = draft.alertLng, abs(oldLat - lat) < 0.01, abs(oldLng - lng) < 0.01 {
+        if let oldLat = current.alertLat, let oldLng = current.alertLng, abs(oldLat - lat) < 0.01, abs(oldLng - lng) < 0.01 {
             return
         }
         isUpdatingAlertLocation = true
         defer { isUpdatingAlertLocation = false }
-        draft.alertLat = lat
-        draft.alertLng = lng
-        try? await saveProfile(draft)
+        guard let saved = try? await backend.updateAlertLocation(userID: current.id, latitude: lat, longitude: lng),
+              profile?.gatheringAlerts == true else { return }
+        profile?.alertLat = saved.alertLat
+        profile?.alertLng = saved.alertLng
+        if let profile { ProfileCache.save(profile) }
     }
 
     // MARK: Profile
@@ -207,6 +247,7 @@ final class AppModel {
         let saved = try await backend.save(draft)
         profile = saved
         ProfileCache.save(saved)
+        isUsingCachedProfile = false
         if phase != .ready {
             phase = .ready
             await startPush()
@@ -228,19 +269,39 @@ final class AppModel {
     }
 
     func complete(_ activity: Activity, minutes: Int, place: Place?, reflection: String?) async throws {
-        guard let backend else { return }
-        let entry = NewActivityLog(
+        try await addToJournal(NewActivityLog(
             activityID: activity.id,
             title: activity.title,
             kind: activity.kind.rawValue,
             durationMinutes: max(1, minutes),
             placeName: place?.name,
             reflection: reflection
-        )
+        ))
+    }
+
+    /// Logs a gathering someone went to, so it counts toward their streak like an activity.
+    func logGathering(_ gathering: GatheringToLog, reflection: String?) async throws {
+        try await addToJournal(NewActivityLog(
+            activityID: gathering.journalActivityID,
+            title: gathering.title,
+            kind: Activity.Kind.community.rawValue,
+            durationMinutes: min(max(gathering.durationMinutes, 1), 600),
+            placeName: gathering.placeName,
+            reflection: reflection,
+            completedAt: gathering.endsAt
+        ))
+        NotificationScheduler.cancelGatheringFollowUp(for: gathering.id)
+    }
+
+    private func addToJournal(_ entry: NewActivityLog) async throws {
+        guard let backend else { return }
         let saved = try await backend.log(entry)
         logs.insert(saved, at: 0)
+        logs.sort { $0.completedAt > $1.completedAt }
         stats = JournalStats(logs: logs)
-        NotificationScheduler.cancelToday()
+        if Calendar.current.isDateInToday(saved.completedAt) {
+            NotificationScheduler.cancelToday()
+        }
         await rescheduleNudges()
     }
 
@@ -252,9 +313,46 @@ final class AppModel {
         await rescheduleNudges()
     }
 
+    /// Several callers can ask at once; only the latest request runs to completion.
     private func rescheduleNudges() async {
         guard let profile else { return }
-        await NotificationScheduler.scheduleDailyNudges(for: profile, skipToday: !completedToday.isEmpty)
+        let skipToday = !completedToday.isEmpty
+        let logs = logs
+        nudgeTask?.cancel()
+        let task = Task {
+            await NotificationScheduler.scheduleDailyNudges(for: profile, skipToday: skipToday)
+            guard !Task.isCancelled else { return }
+            await NotificationScheduler.scheduleWeeklyRecap(logs: logs)
+        }
+        nudgeTask = task
+        await task.value
+        publishWidget()
+    }
+
+    // MARK: Widget
+
+    /// The activity Tonight is showing, so the widget shows the same one.
+    private var tonightPick: Activity?
+
+    func showingTonight(_ activity: Activity?) {
+        guard tonightPick?.id != activity?.id else { return }
+        tonightPick = activity
+        publishWidget()
+    }
+
+    private func publishWidget() {
+        guard let profile else { return }
+        let activity = tonightPick ?? NudgePicker.pick(for: .now, profile: profile)
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
+        let next = NudgePicker.pick(for: tomorrow, profile: profile)
+        WidgetBridge.publish(WidgetSnapshot(
+            day: Calendar.current.startOfDay(for: .now),
+            tonight: .init(activity),
+            tomorrow: .init(next),
+            doneToday: completedToday.first?.title,
+            streak: stats.currentStreak,
+            weekMinutes: WeekSummary(logs: logs).minutes
+        ))
     }
 }
 

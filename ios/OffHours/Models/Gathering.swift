@@ -9,6 +9,8 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
     var details: String
     /// How to find the group on the spot, like "by the fountain, red umbrella".
     var meetingNote: String?
+    /// Shared by the dates of a weekly gathering.
+    var seriesID: UUID?
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -27,6 +29,7 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
         case title
         case details
         case meetingNote = "meeting_note"
+        case seriesID = "series_id"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"
@@ -44,10 +47,31 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
     var spotsLeft: Int { max(0, capacity - attendeeCount) }
     var isFull: Bool { spotsLeft == 0 }
     var going: Bool { isGoing ?? false }
+    var hasEnded: Bool { endsAt <= .now }
     var meetingSpot: String? {
         guard let meetingNote, !meetingNote.isEmpty else { return nil }
         return meetingNote
     }
+}
+
+/// A gathering someone went to that has ended and isn't in their journal yet.
+struct GatheringToLog: Decodable, Identifiable, Hashable, Sendable {
+    var id: UUID
+    var title: String
+    var placeName: String
+    var startsAt: Date
+    var durationMinutes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case placeName = "place_name"
+        case startsAt = "starts_at"
+        case durationMinutes = "duration_minutes"
+    }
+
+    var endsAt: Date { startsAt.addingTimeInterval(TimeInterval(durationMinutes * 60)) }
+    var journalActivityID: String { "gathering-\(id.uuidString.lowercased())" }
 }
 
 struct Attendee: Decodable, Identifiable, Hashable, Sendable {
@@ -66,6 +90,7 @@ struct NewGathering: Encodable, Sendable {
     var title: String
     var details: String
     var meetingNote: String
+    var seriesID: UUID?
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -78,6 +103,7 @@ struct NewGathering: Encodable, Sendable {
         case title
         case details
         case meetingNote = "meeting_note"
+        case seriesID = "series_id"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"

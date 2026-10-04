@@ -7,6 +7,7 @@ struct GatheringsView: View {
     @State private var selected: Gathering?
     @State private var isEnablingAlerts = false
     @State private var alertError: String?
+    @State private var unavailable = false
     @AppStorage("dismissedAlertsPrompt") private var dismissedAlertsPrompt = false
 
     var body: some View {
@@ -84,9 +85,10 @@ struct GatheringsView: View {
                 }
             }
             .refreshable { await model.load(app: app) }
-            .task { await model.load(app: app) }
+            .task(id: app.activations) { await model.load(app: app) }
             .navigationDestination(item: $selected) { gathering in
                 GatheringDetailView(gathering: gathering, model: model)
+                    .id(gathering.id)
             }
             .sheet(isPresented: $showCreate) {
                 CreateGatheringView(near: model.location) { created in
@@ -94,11 +96,21 @@ struct GatheringsView: View {
                 }
             }
             .task(id: app.gatheringToOpen) {
+                // Clearing the ID restarts this task, so only do it once the lookup is done.
                 guard let id = app.gatheringToOpen else { return }
+                let found = await model.resolve(id, app: app)
+                guard !Task.isCancelled, app.gatheringToOpen == id else { return }
                 app.gatheringToOpen = nil
-                if let gathering = await model.resolve(id, app: app) {
-                    selected = gathering
+                if let found {
+                    selected = found
+                } else {
+                    unavailable = true
                 }
+            }
+            .alert("This gathering isn't available", isPresented: $unavailable) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("It may have ended or been cancelled by the host.")
             }
         }
     }

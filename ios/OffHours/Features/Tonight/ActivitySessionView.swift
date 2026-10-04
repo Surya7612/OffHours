@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import UserNotifications
 
@@ -36,7 +37,17 @@ struct ActivitySessionView: View {
             }
         }
         .foregroundStyle(.white)
-        .task { await scheduleEndNotification() }
+        .task {
+            LiveSession.start(
+                title: session.activity.title,
+                symbol: session.activity.kind.symbol,
+                placeName: session.place?.name,
+                startedAt: session.startedAt,
+                endsAt: session.endsAt
+            )
+            await scheduleEndNotification()
+        }
+        .onDisappear { LiveSession.end() }
         .confirmationDialog("Stop without saving?", isPresented: $confirmQuit, titleVisibility: .visible) {
             Button("Stop without saving", role: .destructive) { close() }
         }
@@ -101,7 +112,9 @@ struct ActivitySessionView: View {
                 }
                 .opacity(0.9)
             } else {
-                Text("You can lock your phone. We'll let you know when the time is up.")
+                Text(ActivityAuthorizationInfo().areActivitiesEnabled
+                     ? "You can lock your phone. The timer stays on your Lock Screen."
+                     : "You can lock your phone. We'll let you know when the time is up.")
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .opacity(0.85)
@@ -112,6 +125,7 @@ struct ActivitySessionView: View {
             Button("I'm done") {
                 withAnimation(.smooth) { finishedAt = .now }
                 cancelEndNotification()
+                LiveSession.end()
             }
             .font(.headline)
             .frame(maxWidth: .infinity)

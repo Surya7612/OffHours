@@ -10,12 +10,25 @@ struct TonightView: View {
     @State private var session: ActivitySession?
     @State private var showSettings = false
     @State private var soonGatherings: [Gathering] = []
+    @State private var toLog: [GatheringToLog] = []
+    @State private var loggingGathering: GatheringToLog?
+    @State private var conditions: EveningConditions?
+    @State private var weatherAttribution: WeatherProvider.Attribution?
+    @AppStorage("skippedGatheringLogs") private var skippedLogs = ""
+    @Environment(\.colorScheme) private var colorScheme
 
     private var profile: Profile? { model.profile }
 
-    private var ranked: [Activity] {
-        guard let profile else { return [] }
-        return NudgePicker.ranked(for: .now, profile: profile)
+    private var tonight: (ranked: [Activity], reason: String?) {
+        guard let profile else { return ([], nil) }
+        return NudgePicker.tonight(for: .now, profile: profile, conditions: conditions)
+    }
+
+    private var ranked: [Activity] { tonight.ranked }
+
+    private var pendingLog: GatheringToLog? {
+        let skipped = Set(skippedLogs.split(separator: ",").map(String.init))
+        return toLog.first { !skipped.contains($0.id.uuidString) }
     }
 
     private var activity: Activity? {
@@ -33,6 +46,14 @@ struct TonightView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header
 
+                    if let pendingLog {
+                        GatheringLogCard(
+                            gathering: pendingLog,
+                            onWent: { loggingGathering = pendingLog },
+                            onSkip: { skip(pendingLog) }
+                        )
+                    }
+
                     if let done = model.completedToday.first, !showDoAnother {
                         DoneTonightCard(log: done, streak: model.stats.currentStreak) {
                             withAnimation { showDoAnother = true; choiceIndex = 1 }
@@ -40,6 +61,8 @@ struct TonightView: View {
                     } else if let activity {
                         ActivityHeroCard(
                             activity: activity,
+                            note: choiceIndex == 0 ? tonight.reason : nil,
+                            sunsetHint: conditions?.sunsetHint(for: activity, at: .now),
                             place: place,
                             placeCount: places.count,
                             isFindingPlaces: isFindingPlaces,
@@ -56,6 +79,10 @@ struct TonightView: View {
                     }
 
                     happeningNearby
+
+                    if let weatherAttribution {
+                        WeatherAttributionView(attribution: weatherAttribution, colorScheme: colorScheme)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
@@ -68,12 +95,18 @@ struct TonightView: View {
             }
             .refreshable {
                 await model.refreshJournal()
-                await loadSoonGatherings()
+                await loadAround()
             }
-            .task { await loadSoonGatherings() }
+            .task(id: model.activations) { await loadAround() }
             .task(id: activity?.id) {
+                model.showingTonight(model.completedToday.isEmpty ? activity : nil)
                 guard let activity else { return }
                 await findPlaces(for: activity)
+            }
+            .sheet(item: $loggingGathering) { gathering in
+                LogGatheringSheet(gathering: gathering) {
+                    withAnimation { toLog.removeAll { $0.id == gathering.id } }
+                }
             }
             .fullScreenCover(item: $session) { session in
                 ActivitySessionView(session: session)
@@ -87,9 +120,20 @@ struct TonightView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(Date.now, format: .dateTime.weekday(.wide).month().day())
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(Date.now, format: .dateTime.weekday(.wide).month().day())
+                    if let summary = conditions?.summary {
+                        Text("·")
+                        Label(summary, systemImage: conditions?.symbol ?? "cloud")
+                            .labelStyle(.titleAndIcon)
+                    } else if let sunset = conditions?.sunset, sunset > .now {
+                        Text("·")
+                        Label(sunset.formatted(date: .omitted, time: .shortened), systemImage: "sunset")
+                    }
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
                 Text(greeting)
                     .font(.system(.largeTitle, design: .serif, weight: .semibold))
             }
@@ -159,11 +203,12 @@ struct TonightView: View {
 
     @ViewBuilder
     private var happeningNearby: some View {
-        if !soonGatherings.isEmpty {
+        let current = soonGatherings.filter { !$0.hasEnded }
+        if !current.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Happening near you")
                     .font(.headline)
-                ForEach(soonGatherings) { gathering in
+                ForEach(current) { gathering in
                     Button {
                         model.openGathering(gathering.id)
                     } label: {
@@ -182,25 +227,40 @@ struct TonightView: View {
         }
     }
 
-    /// Gatherings starting in the next day: ones you're going to first, then nearby ones.
-    private func loadSoonGatherings() async {
+    /// Everything on Tonight that depends on the world outside: weather and sunset, gatherings in
+    /// the next day (ones you're going to first), and past gatherings to log.
+    private func loadAround() async {
         guard let backend = model.backend, let profile else { return }
         let cutoff = Date.now.addingTimeInterval(24 * 60 * 60)
         async let going = backend.myUpcomingGatherings()
+        async let unlogged = backend.gatheringsToLog()
         var nearby: [Gathering] = []
         if model.location.isAuthorized, let here = await model.location.currentLocation() {
+            async let weather = WeatherProvider.conditions(at: here)
             nearby = (try? await backend.nearbyGatherings(
                 latitude: here.coordinate.latitude,
                 longitude: here.coordinate.longitude,
                 radiusKm: Double(profile.radiusKm)
             )) ?? []
+            let (found, attribution) = await weather
+            withAnimation { conditions = found }
+            weatherAttribution = attribution
         }
         let mine = (try? await going) ?? []
         var seen = Set<UUID>()
         soonGatherings = (mine + nearby)
-            .filter { $0.startsAt <= cutoff && $0.endsAt > .now && seen.insert($0.id).inserted }
+            .filter { $0.startsAt <= cutoff && !$0.hasEnded && seen.insert($0.id).inserted }
             .prefix(3)
             .map { $0 }
+        if let unlogged = try? await unlogged { toLog = unlogged }
+    }
+
+    private func skip(_ gathering: GatheringToLog) {
+        withAnimation {
+            skippedLogs = (skippedLogs.split(separator: ",").map(String.init).suffix(30) + [gathering.id.uuidString])
+                .joined(separator: ",")
+        }
+        NotificationScheduler.cancelGatheringFollowUp(for: gathering.id)
     }
 
     private func findPlaces(for activity: Activity) async {
@@ -216,6 +276,8 @@ struct TonightView: View {
 
 private struct ActivityHeroCard: View {
     let activity: Activity
+    let note: String?
+    let sunsetHint: String?
     let place: Place?
     let placeCount: Int
     let isFindingPlaces: Bool
@@ -227,6 +289,13 @@ private struct ActivityHeroCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            if let note {
+                Label(note, systemImage: "house")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+            }
+
             VStack(alignment: .leading, spacing: 12) {
                 Text("TONIGHT")
                     .font(.caption.weight(.bold))
@@ -249,6 +318,13 @@ private struct ActivityHeroCard: View {
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.duskGradient, in: .rect(cornerRadius: 24))
+
+            if let sunsetHint {
+                Label(sunsetHint, systemImage: "sunset")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.ember)
+                    .padding(.horizontal, 4)
+            }
 
             if !activity.bring.isEmpty {
                 Label("Bring: \(activity.bring.joined(separator: ", "))", systemImage: "bag")
@@ -331,6 +407,109 @@ private struct ActivityHeroCard: View {
             }
         }
         .card()
+    }
+}
+
+private struct GatheringLogCard: View {
+    let gathering: GatheringToLog
+    let onWent: () -> Void
+    let onSkip: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("How was it?", systemImage: "person.3.fill")
+                .font(.headline)
+                .foregroundStyle(Activity.Kind.community.tint)
+            Text("\(gathering.title) at \(gathering.placeName), \(gathering.startsAt.formatted(.relative(presentation: .named)))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button("I went", action: onWent)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.ember)
+                Button("Didn't make it", action: onSkip)
+                    .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+    }
+}
+
+private struct LogGatheringSheet: View {
+    let gathering: GatheringToLog
+    let onLogged: () -> Void
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var reflection = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(gathering.title).font(.headline)
+                    Text("\(gathering.durationMinutes) min at \(gathering.placeName)")
+                        .foregroundStyle(.secondary)
+                }
+                Section("One line to remember it by") {
+                    TextField("I met…", text: $reflection, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                if let errorMessage {
+                    Text(errorMessage).foregroundStyle(.red)
+                }
+            }
+            .navigationTitle("Add to journal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(isSaving)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func save() {
+        isSaving = true
+        let text = reflection.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            defer { isSaving = false }
+            do {
+                try await model.logGathering(gathering, reflection: text.isEmpty ? nil : String(text.prefix(500)))
+                onLogged()
+                dismiss()
+            } catch {
+                errorMessage = error.userMessage
+            }
+        }
+    }
+}
+
+/// Apple Weather's mark and legal link, required wherever WeatherKit data is shown.
+private struct WeatherAttributionView: View {
+    let attribution: WeatherProvider.Attribution
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            AsyncImage(url: colorScheme == .dark ? attribution.darkMark : attribution.lightMark) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                Text(" Weather")
+            }
+            .frame(height: 12)
+            Link("Data sources", destination: attribution.legalPage)
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
     }
 }
 

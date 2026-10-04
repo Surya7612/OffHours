@@ -3,7 +3,7 @@ import SwiftUI
 
 struct CreateGatheringView: View {
     let near: CLLocation?
-    let onCreated: (Gathering) -> Void
+    let onCreated: ([Gathering]) -> Void
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +13,8 @@ struct CreateGatheringView: View {
     @State private var startsAt = CreateGatheringView.defaultStart()
     @State private var durationMinutes = 60
     @State private var capacity = 6
+    @State private var repeatsWeekly = false
+    @State private var weeks = 4
     @State private var place: Place?
     @State private var showPlaceSearch = false
     @State private var agreedToRules = false
@@ -71,6 +73,20 @@ struct CreateGatheringView: View {
                 }
 
                 Section {
+                    Toggle("Repeat weekly", isOn: $repeatsWeekly)
+                        .disabled(maxWeeks < 2)
+                    if repeatsWeekly && maxWeeks >= 2 {
+                        Stepper("\(min(weeks, maxWeeks)) weeks", value: $weeks, in: 2...maxWeeks)
+                    }
+                } footer: {
+                    if repeatsWeekly && maxWeeks >= 2 {
+                        Text("Same time and place every \(startsAt.formatted(.dateTime.weekday(.wide))), last one \(lastDate.formatted(date: .abbreviated, time: .omitted)). People join each date separately.")
+                    } else if maxWeeks < 2 {
+                        Text("Repeating dates must fall within the next 30 days.")
+                    }
+                }
+
+                Section {
                     Toggle(isOn: $agreedToRules) {
                         Text("I'll meet in a public place and follow the [community rules](\(AppConfig.termsURL.absoluteString)).")
                             .font(.subheadline)
@@ -110,8 +126,26 @@ struct CreateGatheringView: View {
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var canPost: Bool {
-        (3...80).contains(trimmedTitle.count) && details.count <= 500 && meetingNote.count <= 140
+        trimmedTitle.count >= 3 && trimmedTitle.databaseLength <= 80
+            && details.databaseLength <= 500 && meetingNote.databaseLength <= 140
             && place != nil && agreedToRules
+    }
+
+    /// How many weekly dates fit before the 30-day limit on gatherings (up to 4).
+    private var maxWeeks: Int {
+        let limit = Date.now.addingTimeInterval(30 * 24 * 60 * 60 - 5 * 60)
+        return (1...4).last { weekly(startsAt, offset: $0 - 1) <= limit } ?? 1
+    }
+
+    private var dates: [Date] {
+        let count = repeatsWeekly ? min(weeks, maxWeeks) : 1
+        return (0..<count).map { weekly(startsAt, offset: $0) }
+    }
+
+    private var lastDate: Date { dates.last ?? startsAt }
+
+    private func weekly(_ date: Date, offset: Int) -> Date {
+        Calendar.current.date(byAdding: .weekOfYear, value: offset, to: date) ?? date
     }
 
     private func post() async {
@@ -131,18 +165,23 @@ struct CreateGatheringView: View {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            let created = try await backend.create(NewGathering(
-                title: trimmedTitle,
-                details: trimmedDetails,
-                meetingNote: trimmedNote,
-                startsAt: startsAt,
-                durationMinutes: durationMinutes,
-                placeName: String(place.name.prefix(120)),
-                placeAddress: String(place.address.prefix(200)),
-                lat: place.coordinate.latitude,
-                lng: place.coordinate.longitude,
-                capacity: capacity
-            ))
+            let dates = dates
+            let seriesID = dates.count > 1 ? UUID() : nil
+            let created = try await backend.create(dates.map { date in
+                NewGathering(
+                    title: trimmedTitle,
+                    details: trimmedDetails,
+                    meetingNote: trimmedNote,
+                    seriesID: seriesID,
+                    startsAt: date,
+                    durationMinutes: durationMinutes,
+                    placeName: place.name.clipped(to: 120),
+                    placeAddress: place.address.clipped(to: 200),
+                    lat: place.coordinate.latitude,
+                    lng: place.coordinate.longitude,
+                    capacity: capacity
+                )
+            })
             onCreated(created)
             dismiss()
         } catch {

@@ -13,37 +13,42 @@ final class GatheringsModel {
     private(set) var going: [Gathering] = []
     private(set) var state: LoadState = .idle
     private(set) var location: CLLocation?
+    /// Each load bumps this, so a slow older load can't overwrite a newer one.
+    private var generation = 0
 
     func load(app: AppModel) async {
         guard let backend = app.backend, let profile = app.profile else { return }
+        generation += 1
+        let current = generation
         if nearby.isEmpty && going.isEmpty { state = .loading }
 
         async let mine = backend.myUpcomingGatherings()
         let here = await app.location.currentLocation()
-        location = here
         if let here { await app.noteLocation(here) }
 
         do {
-            going = try await mine
+            let upcoming = try await mine
+            var found: [Gathering] = []
             if let here {
-                let found = try await backend.nearbyGatherings(
+                found = try await backend.nearbyGatherings(
                     latitude: here.coordinate.latitude,
                     longitude: here.coordinate.longitude,
                     radiusKm: Double(profile.radiusKm)
                 )
-                nearby = found.filter { !$0.going }
-                state = .loaded
-            } else {
-                nearby = []
-                state = .needsLocation
             }
+            guard current == generation else { return }
+            location = here
+            going = upcoming.filter { !$0.hasEnded }
+            nearby = found.filter { !$0.going && !$0.hasEnded }
+            state = here == nil ? .needsLocation : .loaded
         } catch {
+            guard current == generation else { return }
             state = .failed(error.userMessage)
         }
     }
 
     func join(_ gathering: Gathering, app: AppModel) async throws {
-        guard let backend = app.backend else { return }
+        guard let backend = app.backend, !going.contains(where: { $0.id == gathering.id }) else { return }
         try await backend.join(gatheringID: gathering.id)
         var joined = gathering
         joined.isGoing = true
@@ -56,9 +61,12 @@ final class GatheringsModel {
 
     /// Finds a gathering opened from a notification, using what's already loaded when possible.
     func resolve(_ id: UUID, app: AppModel) async -> Gathering? {
-        if let known = (going + nearby).first(where: { $0.id == id }) { return known }
-        guard let backend = app.backend, let userID = app.userID else { return nil }
-        return try? await backend.gathering(id: id, userID: userID)
+        if let known = (going + nearby).first(where: { $0.id == id }), !known.hasEnded { return known }
+        guard let backend = app.backend, let userID = app.userID,
+              let found = try? await backend.gathering(id: id, userID: userID),
+              !found.hasEnded
+        else { return nil }
+        return found
     }
 
     func leave(_ gathering: Gathering, app: AppModel) async throws {
@@ -73,20 +81,36 @@ final class GatheringsModel {
         nearby.sort { $0.startsAt < $1.startsAt }
     }
 
-    func created(_ gathering: Gathering, app: AppModel) async {
-        insertGoing(gathering)
-        await NotificationScheduler.scheduleReminder(for: gathering)
-        if let backend = app.backend {
-            Task { await backend.sendGatheringAlert(.created, gatheringID: gathering.id) }
+    /// A weekly series alerts nearby people once, for its first date.
+    func created(_ gatherings: [Gathering], app: AppModel) async {
+        for gathering in gatherings {
+            insertGoing(gathering)
+            await NotificationScheduler.scheduleReminder(for: gathering)
+        }
+        if let backend = app.backend, let first = gatherings.first {
+            Task { await backend.sendGatheringAlert(.created, gatheringID: first.id) }
         }
     }
 
     func cancel(_ gathering: Gathering, app: AppModel) async throws {
         guard let backend = app.backend else { return }
         try await backend.cancel(gatheringID: gathering.id)
-        NotificationScheduler.cancelReminder(for: gathering.id)
-        going.removeAll { $0.id == gathering.id }
-        Task { await backend.sendGatheringAlert(.cancelled, gatheringID: gathering.id) }
+        removeCancelled([gathering.id], backend: backend)
+    }
+
+    /// Cancels every date in the series that hasn't started yet.
+    func cancelSeries(of gathering: Gathering, app: AppModel) async throws {
+        guard let backend = app.backend, let seriesID = gathering.seriesID else { return }
+        let cancelled = try await backend.cancelSeries(seriesID: seriesID)
+        removeCancelled(cancelled, backend: backend)
+    }
+
+    private func removeCancelled(_ ids: [UUID], backend: Backend) {
+        for id in ids { NotificationScheduler.cancelReminder(for: id) }
+        going.removeAll { ids.contains($0.id) }
+        Task {
+            for id in ids { await backend.sendGatheringAlert(.cancelled, gatheringID: id) }
+        }
     }
 
     func updateMeetingNote(_ note: String, for gathering: Gathering, app: AppModel) async throws {

@@ -25,3 +25,20 @@ enum ContentFilter {
         return nil
     }
 }
+
+extension String {
+    /// Length as Postgres `char_length` counts it (code points), which the database limits use.
+    var databaseLength: Int { unicodeScalars.count }
+
+    /// The longest prefix of whole characters within `limit` code points.
+    func clipped(to limit: Int) -> String {
+        var result = ""
+        var length = 0
+        for character in self {
+            length += character.unicodeScalars.count
+            guard length <= limit else { break }
+            result.append(character)
+        }
+        return result
+    }
+}

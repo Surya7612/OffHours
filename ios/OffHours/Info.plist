@@ -26,12 +26,18 @@
 	<string>public.app-category.healthcare-fitness</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>OffHours uses your location to suggest real places near you for tonight's activity and to show gatherings in your neighborhood.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>SupabaseAnonKey</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>SupabaseHost</key>
 	<string>$(SUPABASE_HOST)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

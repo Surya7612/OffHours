@@ -40,3 +40,4 @@ done
 "${psql_cmd[@]}" -d offhours -f "$here/alerts.sql"
 "${psql_cmd[@]}" -d offhours -f "$here/moderation.sql"
 "${psql_cmd[@]}" -d offhours -f "$here/gathering_details.sql"
+"${psql_cmd[@]}" -d offhours -f "$here/series_journal_insights.sql"

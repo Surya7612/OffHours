@@ -39,19 +39,48 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         print("Push registration failed: \(error.localizedDescription)")
     }
 
+    /// Silent part of a push, delivered even when the app is in the background.
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any]
+    ) async -> UIBackgroundFetchResult {
+        let payload = NotificationPayload(userInfo)
+        if payload.kind == "cancelled", let id = payload.gatheringID {
+            NotificationScheduler.cancelReminder(for: id)
+            return .newData
+        }
+        return .noData
+    }
+
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+        let payload = NotificationPayload(notification.request.content.userInfo)
+        if payload.kind == "cancelled", let id = payload.gatheringID {
+            NotificationScheduler.cancelReminder(for: id)
+        }
+        return [.banner, .sound]
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let info = response.notification.request.content.userInfo
-        guard let raw = info["gathering_id"] as? String, let id = UUID(uuidString: raw) else { return }
-        await MainActor.run { model.openGathering(id) }
+        let payload = NotificationPayload(response.notification.request.content.userInfo)
+        await MainActor.run { model.handleNotificationTap(payload) }
+    }
+}
+
+/// The parts of a notification's `userInfo` the app acts on.
+struct NotificationPayload: Sendable {
+    var gatheringID: UUID?
+    var kind: String?
+    var open: String?
+
+    init(_ userInfo: [AnyHashable: Any]) {
+        gatheringID = (userInfo["gathering_id"] as? String).flatMap(UUID.init(uuidString:))
+        kind = userInfo["kind"] as? String
+        open = userInfo["open"] as? String
     }
 }

@@ -28,6 +28,18 @@ points you to a real place nearby to do it, and lets neighbors host small gather
   people who opt in hear about new gatherings within their distance, at most once a day. Opting
   in stores a location rounded to about 1 km; turning it off deletes it.
 - **Tonight** also lists gatherings in the next 24 hours that you're going to or that are nearby.
+- **Weather and sunset**: on wet, very cold or very hot evenings (Apple WeatherKit), and after
+  dark, outdoor picks move behind indoor ones. Sunset is calculated on device and outdoor picks
+  say when to head out. Without weather data the picks are unchanged.
+- **Weekly gatherings**: hosts can repeat a gathering for 2 to 4 weeks. Each date has its own
+  RSVPs; nearby people get one alert for the series, and hosts can cancel one date or all.
+- **Gatherings in the journal**: after a gathering you joined, Tonight asks "How was it?" and
+  logging it counts toward your streak.
+- **Lock Screen and Home Screen**: the activity timer runs as a Live Activity (Lock Screen and
+  Dynamic Island), and the `OffHoursWidgets` extension shows tonight's pick, your streak and
+  minutes this week on the Home Screen and Lock Screen. The app shares what to show through the
+  `group.com.suryanediyadeth.offhours` App Group.
+- **Weekly recap**: a Sunday 7 PM local notification summarizing the week.
 - **Account deletion** in Settings removes the user and everything they own.
 
 ## First-time setup
@@ -90,7 +102,27 @@ select moderation.resolve_report('<report id>', 'No action needed');
 ```
 
 Hosts can create up to 3 gatherings a day, have up to 5 upcoming, and schedule up to 30 days
-ahead. People can file up to 10 reports a day.
+ahead. A weekly series counts as one gathering toward those limits. People can file up to 10
+reports a day.
+
+### Usage numbers
+
+The `insights` schema has read-only views over the whole database. Like `moderation`, it's only
+reachable from the SQL editor:
+
+```sql
+select * from insights.totals;                 -- people, alerts opt-ins, gatherings, open reports
+select * from insights.daily limit 14;         -- signups, active people, activities, minutes, RSVPs per day
+select * from insights.retention;              -- % of each signup week still logging in weeks 1, 2 and 4
+select * from insights.top_activities;         -- most-done activities in the last 30 days
+```
+
+### WeatherKit
+
+Tonight's weather comes from WeatherKit, so the App ID needs it enabled in two places in the
+[developer portal](https://developer.apple.com/account/resources/identifiers/list): under
+**Capabilities** (automatic signing turns this on) and under **App Services**. Data can take up to
+30 minutes to start working after you enable it. Until then the app falls back to sunset only.
 
 ### 3. App secrets
 
@@ -115,7 +147,7 @@ registers the bundle ID with the Sign in with Apple and Push Notifications capab
 ## Tests
 
 ```sh
-# Swift unit tests (streaks, daily picks)
+# Swift unit tests (streaks, daily picks, sunset, weather re-ranking, weekly recap, widget)
 cd ios && xcodebuild test -project OffHours.xcodeproj -scheme OffHours \
   -destination 'platform=iOS Simulator,name=iPhone 17'
 
