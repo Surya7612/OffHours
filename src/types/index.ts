@@ -120,29 +120,6 @@ export interface PresenceActivity {
   wasWithFriends?: boolean;
 }
 
-export interface LumaEvent {
-  id: string;
-  title: string;
-  description: string;
-  startTime: Date;
-  endTime: Date;
-  location: {
-    name: string;
-    address: string;
-    lat?: number;
-    lng?: number;
-  };
-  url: string;
-  tags: string[];
-  attendeeCount: number;
-  maxAttendees?: number;
-  price?: number;
-  organizer: {
-    name: string;
-    avatar?: string;
-  };
-}
-
 export interface NotificationChoice {
   id: string;
   userId: string;
@@ -172,7 +149,7 @@ export interface UserEventRSVP {
   id: string;
   userId: string;
   eventId: string;
-  eventType: 'pod' | 'luma';
+  eventType: 'pod' | 'community';
   eventTitle: string;
   eventDescription: string;
   eventDate: Date;
@@ -187,7 +164,7 @@ export interface EventReminder {
   id: string;
   userId: string;
   eventId: string;
-  eventType: 'pod' | 'luma';
+  eventType: 'pod' | 'community';
   reminderType: 'departure' | 'start' | 'follow_up';
   scheduledTime: Date;
   message: string;

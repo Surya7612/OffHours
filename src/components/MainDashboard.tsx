@@ -8,7 +8,6 @@ import { RealTimeNotification } from './RealTimeNotification';
 import { FriendsList } from './FriendsList';
 import { ChatInterface } from './ChatInterface';
 import { CalendarView } from './CalendarView';
-import { LumaEventsView } from './LumaEventsView';
 import { ActivityBrowser } from './ActivityBrowser';
 import { MyEventsView } from './MyEventsView';
 import { AchievementBadges } from './AchievementBadges';
@@ -23,7 +22,7 @@ import { MobileMenu } from './MobileMenu';
 import { ProfileScreen } from './ProfileScreen';
 import { AdminDashboard } from './AdminDashboard';
 import { SubscriptionManagement } from './SubscriptionManagement';
-import { UnifiedNudge, Pod, User, SoloNudge, NotificationChoice, ChatRoom, ChatMessage, PresenceActivity, LumaEvent, UserEventRSVP } from '../types';
+import { UnifiedNudge, Pod, User, SoloNudge, NotificationChoice, ChatRoom, ChatMessage, PresenceActivity, UserEventRSVP } from '../types';
 import { generateEnhancedUnifiedNudge, generateEnhancedSoloNudge } from '../utils/enhancedNudgeGenerator';
 import { ActivityTemplate } from '../utils/activityDatabase';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -62,7 +61,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ user, pod, subscri
   const [showReflection, setShowReflection] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationChoice, setNotificationChoice] = useState<NotificationChoice | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'friends' | 'chat' | 'calendar' | 'events' | 'browse' | 'my-events' | 'achievements' | 'leaderboard' | 'challenges' | 'scheduler' | 'community-events' | 'profile' | 'admin' | 'subscription-management'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'friends' | 'chat' | 'calendar' | 'browse' | 'my-events' | 'achievements' | 'leaderboard' | 'challenges' | 'scheduler' | 'community-events' | 'profile' | 'admin' | 'subscription-management'>('dashboard');
   const [activeChatRoom, setActiveChatRoom] = useState<ChatRoom | null>(null);
   const [friends, setFriends] = useState<User[]>([]);
   const [activities, setActivities] = useState<PresenceActivity[]>([]);
@@ -183,25 +182,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ user, pod, subscri
   // Load user RSVPs
   useEffect(() => {
     const mockRSVPs: UserEventRSVP[] = [
-      {
-        id: 'rsvp-1',
-        userId: user.id,
-        eventId: 'luma-1',
-        eventType: 'luma',
-        eventTitle: 'Walk with Founders - NYC',
-        eventDescription: 'Join fellow entrepreneurs for a morning walk and networking session in Central Park.',
-        eventDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        eventLocation: 'Central Park, New York, NY',
-        status: 'confirmed',
-        rsvpDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        eventData: {
-          url: 'https://lu.ma/walk-with-founders-nyc',
-          organizer: 'Startup Community NYC',
-          price: null,
-          lat: 40.7829,
-          lng: -73.9654
-        }
-      },
       {
         id: 'rsvp-2',
         userId: user.id,
@@ -455,31 +435,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ user, pod, subscri
     setActiveTab('dashboard');
   };
 
-  const handleLumaRSVP = (event: LumaEvent) => {
-    // Add to user RSVPs
-    const newRSVP: UserEventRSVP = {
-      id: `rsvp-${Date.now()}`,
-      userId: user.id,
-      eventId: event.id,
-      eventType: 'luma',
-      eventTitle: event.title,
-      eventDescription: event.description,
-      eventDate: event.startTime,
-      eventLocation: event.location.address,
-      status: 'confirmed',
-      rsvpDate: new Date(),
-      eventData: {
-        url: event.url,
-        organizer: event.organizer.name,
-        price: event.price,
-        lat: event.location.lat,
-        lng: event.location.lng
-      }
-    };
-    
-    setUserRSVPs(prev => [newRSVP, ...prev]);
-  };
-
   const toggleMobileMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -515,15 +470,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ user, pod, subscri
       <CalendarView
         activities={activities}
         onBack={() => setActiveTab('dashboard')}
-      />
-    );
-  }
-
-  if (activeTab === 'events') {
-    return (
-      <LumaEventsView
-        onBack={() => setActiveTab('dashboard')}
-        onRSVP={handleLumaRSVP}
       />
     );
   }
@@ -914,12 +860,8 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ user, pod, subscri
                             })}
                           </div>
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          rsvp.eventType === 'luma' 
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
-                        }`}>
-                          {rsvp.eventType === 'luma' ? 'Luma' : 'Pod'}
+                        <div className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                          Pod
                         </div>
                       </div>
                     ))}

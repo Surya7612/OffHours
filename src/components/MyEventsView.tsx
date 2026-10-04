@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Clock, Users, X, AlertCircle, CheckCircle, ExternalLink, Navigation, ArrowLeft, RefreshCw } from 'lucide-react';
-import { User, UserEventRSVP, LumaEvent, UnifiedNudge } from '../types';
+import { Calendar, MapPin, Clock, Users, X, AlertCircle, CheckCircle, Navigation, ArrowLeft, RefreshCw } from 'lucide-react';
+import { User, UserEventRSVP, UnifiedNudge } from '../types';
 import { format, isAfter, isBefore, addMinutes, differenceInMinutes } from 'date-fns';
 
 interface MyEventsViewProps {
@@ -20,7 +20,6 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
     
     // Load from localStorage
     const savedRSVPs = localStorage.getItem('user_rsvps');
-    const lumaRSVPs = localStorage.getItem('luma_rsvps');
     
     let allRSVPs: UserEventRSVP[] = [];
     
@@ -34,60 +33,6 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
         }));
       } catch (error) {
         console.error('Error loading RSVPs:', error);
-      }
-    }
-    
-    // Load Luma RSVPs and convert them
-    if (lumaRSVPs) {
-      try {
-        const lumaEventIds = JSON.parse(lumaRSVPs);
-        // Mock Luma events data - in production, fetch from API
-        const mockLumaEvents = [
-          {
-            id: 'luma-1',
-            title: 'Walk with Founders - NYC',
-            description: 'Join fellow entrepreneurs for a morning walk and networking session in Central Park.',
-            startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            location: { address: 'Central Park, New York, NY', lat: 40.7829, lng: -73.9654 },
-            url: 'https://lu.ma/walk-with-founders-nyc',
-            organizer: { name: 'Startup Community NYC' }
-          },
-          {
-            id: 'luma-2',
-            title: 'Lunch with Angel Investors',
-            description: 'Casual lunch meetup with angel investors and VCs.',
-            startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-            location: { address: 'The High Line, New York, NY', lat: 40.7480, lng: -74.0048 },
-            url: 'https://lu.ma/lunch-with-investors-nyc',
-            organizer: { name: 'Angel Network NYC' }
-          }
-        ];
-        
-        lumaEventIds.forEach((eventId: string) => {
-          const lumaEvent = mockLumaEvents.find(e => e.id === eventId);
-          if (lumaEvent && !allRSVPs.find(r => r.eventId === eventId)) {
-            allRSVPs.push({
-              id: `rsvp-luma-${eventId}`,
-              userId: user.id,
-              eventId: eventId,
-              eventType: 'luma',
-              eventTitle: lumaEvent.title,
-              eventDescription: lumaEvent.description,
-              eventDate: lumaEvent.startTime,
-              eventLocation: lumaEvent.location.address,
-              status: 'confirmed',
-              rsvpDate: new Date(),
-              eventData: {
-                url: lumaEvent.url,
-                organizer: lumaEvent.organizer.name,
-                lat: lumaEvent.location.lat,
-                lng: lumaEvent.location.lng
-              }
-            });
-          }
-        });
-      } catch (error) {
-        console.error('Error loading Luma RSVPs:', error);
       }
     }
     
@@ -141,7 +86,7 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
 
     // Listen for storage changes to sync across tabs
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user_rsvps' || e.key === 'luma_rsvps') {
+      if (e.key === 'user_rsvps') {
         loadRSVPs();
       }
     };
@@ -178,20 +123,6 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
       setUserRSVPs(updatedRSVPs);
       localStorage.setItem('user_rsvps', JSON.stringify(updatedRSVPs));
 
-      // Also remove from Luma RSVPs if it's a Luma event
-      if (rsvp.eventType === 'luma') {
-        const lumaRSVPs = localStorage.getItem('luma_rsvps');
-        if (lumaRSVPs) {
-          try {
-            const lumaEventIds = JSON.parse(lumaRSVPs);
-            const updatedLumaRSVPs = lumaEventIds.filter((id: string) => id !== rsvp.eventId);
-            localStorage.setItem('luma_rsvps', JSON.stringify(updatedLumaRSVPs));
-          } catch (error) {
-            console.error('Error updating Luma RSVPs:', error);
-          }
-        }
-      }
-
       // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('rsvp-updated'));
 
@@ -215,12 +146,6 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
       // Fallback to address search
       const query = encodeURIComponent(rsvp.eventLocation);
       window.open(`https://www.google.com/maps/search/?api=1&query=${query}`);
-    }
-  };
-
-  const handleOpenLumaEvent = (rsvp: UserEventRSVP) => {
-    if (rsvp.eventType === 'luma' && rsvp.eventData?.url) {
-      window.open(rsvp.eventData.url, '_blank');
     }
   };
 
@@ -364,7 +289,7 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 font-body">
               {activeTab === 'upcoming' 
-                ? 'RSVP to pod activities or Luma events to see them here'
+                ? 'RSVP to pod or community activities to see them here'
                 : 'Your completed and cancelled events will appear here'
               }
             </p>
@@ -387,11 +312,11 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
                           {rsvp.eventTitle}
                         </h3>
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                          rsvp.eventType === 'luma' 
+                          rsvp.eventType === 'community' 
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
                         }`}>
-                          {rsvp.eventType === 'luma' ? '🌐 Luma' : '👥 Pod'}
+                          {rsvp.eventType === 'community' ? '🌐 Community' : '👥 Pod'}
                         </div>
                       </div>
                       <p className="text-gray-600 dark:text-gray-300 mb-3 font-body">
@@ -450,16 +375,6 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
                             <Navigation className="w-4 h-4" />
                             Directions
                           </button>
-                          
-                          {rsvp.eventType === 'luma' && (
-                            <button
-                              onClick={() => handleOpenLumaEvent(rsvp)}
-                              className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View on Luma
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -467,7 +382,7 @@ export const MyEventsView: React.FC<MyEventsViewProps> = ({ user, onBack }) => {
 
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500 dark:text-gray-400 font-body">
-                      {rsvp.eventType === 'luma' ? (
+                      {rsvp.eventType === 'community' ? (
                         <span>Organized by {rsvp.eventData?.organizer}</span>
                       ) : (
                         <span>Pod: {rsvp.eventData?.podName}</span>
