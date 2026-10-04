@@ -12,8 +12,20 @@ struct GatheringDetailView: View {
     @State private var showReport = false
     @State private var confirmBlock = false
     @State private var confirmCancel = false
+    @State private var attendees: [Attendee] = []
+    @State private var editingSpot = false
+    @State private var spotDraft = ""
 
     private var isHost: Bool { gathering.hostID == app.userID }
+
+    private var shareText: String {
+        let day = gathering.startsAt.formatted(.dateTime.weekday(.wide).month().day())
+        let time = gathering.startsAt.formatted(date: .omitted, time: .shortened)
+        var lines = ["Join me for \(gathering.title): \(day) at \(time), \(gathering.placeName)."]
+        if let spot = gathering.meetingSpot { lines.append("Look for: \(spot)") }
+        lines.append("RSVP on OffHours: \(AppConfig.downloadURL.absoluteString)")
+        return lines.joined(separator: "\n")
+    }
 
     var body: some View {
         ScrollView {
@@ -60,8 +72,26 @@ struct GatheringDetailView: View {
                         Text(gathering.isFull ? "No spots left" : "\(gathering.spotsLeft) of \(gathering.capacity) spots left")
                             .foregroundStyle(.secondary)
                     }
+                    if gathering.meetingSpot != nil || isHost {
+                        InfoRow(symbol: "eye") {
+                            Text(gathering.meetingSpot ?? "Add where to find you")
+                                .foregroundStyle(gathering.meetingSpot == nil ? .secondary : .primary)
+                            if isHost {
+                                Button(gathering.meetingSpot == nil ? "Add meeting spot" : "Change meeting spot") {
+                                    spotDraft = gathering.meetingNote ?? ""
+                                    editingSpot = true
+                                }
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Theme.ember)
+                            }
+                        }
+                    }
                 }
                 .card()
+
+                if isHost {
+                    attendeeList
+                }
 
                 if !gathering.details.isEmpty {
                     Text(gathering.details)
@@ -84,7 +114,23 @@ struct GatheringDetailView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            guard isHost, let backend = app.backend else { return }
+            attendees = (try? await backend.attendees(gatheringID: gathering.id)) ?? []
+        }
+        .alert("Meeting spot", isPresented: $editingSpot) {
+            TextField("By the fountain, red umbrella", text: $spotDraft)
+            Button("Save") { saveSpot() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Help people find you when they arrive.")
+        }
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: shareText) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+            }
             if !isHost {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu("More", systemImage: "ellipsis.circle") {
@@ -120,6 +166,42 @@ struct GatheringDetailView: View {
             Button("Keep it", role: .cancel) {}
         } message: {
             Text("It will disappear for everyone who joined.")
+        }
+    }
+
+    private var attendeeList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Who's coming")
+                .font(.headline)
+            if attendees.isEmpty {
+                Text("No one yet. Share it with friends to get it started.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(attendees) { attendee in
+                    HStack {
+                        Text(attendee.displayName)
+                        Spacer()
+                        Text(attendee.joinedAt, format: .relative(presentation: .named))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+    }
+
+    private func saveSpot() {
+        let note = String(spotDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(140))
+        if let problem = ContentFilter.problem(in: note) {
+            errorMessage = problem
+            return
+        }
+        perform {
+            try await model.updateMeetingNote(note, for: gathering, app: app)
+            gathering.meetingNote = note
         }
     }
 

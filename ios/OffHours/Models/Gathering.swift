@@ -7,6 +7,8 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
     var hostName: String
     var title: String
     var details: String
+    /// How to find the group on the spot, like "by the fountain, red umbrella".
+    var meetingNote: String?
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -24,6 +26,7 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
         case hostName = "host_name"
         case title
         case details
+        case meetingNote = "meeting_note"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"
@@ -41,11 +44,28 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
     var spotsLeft: Int { max(0, capacity - attendeeCount) }
     var isFull: Bool { spotsLeft == 0 }
     var going: Bool { isGoing ?? false }
+    var meetingSpot: String? {
+        guard let meetingNote, !meetingNote.isEmpty else { return nil }
+        return meetingNote
+    }
+}
+
+struct Attendee: Decodable, Identifiable, Hashable, Sendable {
+    var id: UUID
+    var displayName: String
+    var joinedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id = "user_id"
+        case displayName = "display_name"
+        case joinedAt = "joined_at"
+    }
 }
 
 struct NewGathering: Encodable, Sendable {
     var title: String
     var details: String
+    var meetingNote: String
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -57,6 +77,7 @@ struct NewGathering: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case title
         case details
+        case meetingNote = "meeting_note"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"

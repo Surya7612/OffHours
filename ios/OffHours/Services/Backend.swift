@@ -182,6 +182,18 @@ struct Backend: Sendable {
             .execute()
     }
 
+    /// Only returns names for gatherings the signed-in user hosts.
+    func attendees(gatheringID: UUID) async throws -> [Attendee] {
+        try await client.rpc("gathering_attendees", params: ["p_gathering_id": gatheringID]).execute().value
+    }
+
+    func updateMeetingNote(gatheringID: UUID, note: String) async throws {
+        try await client.from("gatherings")
+            .update(["meeting_note": note])
+            .eq("id", value: gatheringID)
+            .execute()
+    }
+
     func cancel(gatheringID: UUID) async throws {
         try await client.from("gatherings")
             .update(["cancelled": true])
@@ -219,7 +231,7 @@ struct Backend: Sendable {
 }
 
 enum GatheringAlertKind: String, Sendable {
-    case created, joined
+    case created, joined, cancelled
 }
 
 extension Error {

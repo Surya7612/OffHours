@@ -9,6 +9,7 @@ struct CreateGatheringView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var details = ""
+    @State private var meetingNote = ""
     @State private var startsAt = CreateGatheringView.defaultStart()
     @State private var durationMinutes = 60
     @State private var capacity = 6
@@ -54,6 +55,8 @@ struct CreateGatheringView: View {
                             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
                         }
                     }
+
+                    TextField("Where exactly? (by the fountain, red umbrella)", text: $meetingNote)
 
                     DatePicker("Starts", selection: $startsAt, in: Date.now.addingTimeInterval(30 * 60)...Date.now.addingTimeInterval(30 * 24 * 60 * 60), displayedComponents: [.date, .hourAndMinute])
 
@@ -107,13 +110,15 @@ struct CreateGatheringView: View {
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var canPost: Bool {
-        (3...80).contains(trimmedTitle.count) && details.count <= 500 && place != nil && agreedToRules
+        (3...80).contains(trimmedTitle.count) && details.count <= 500 && meetingNote.count <= 140
+            && place != nil && agreedToRules
     }
 
     private func post() async {
         guard let backend = app.backend, let place else { return }
         let trimmedDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let problem = ContentFilter.problem(in: trimmedTitle + " " + trimmedDetails) {
+        let trimmedNote = meetingNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let problem = ContentFilter.problem(in: [trimmedTitle, trimmedDetails, trimmedNote].joined(separator: " ")) {
             errorMessage = problem
             return
         }
@@ -129,6 +134,7 @@ struct CreateGatheringView: View {
             let created = try await backend.create(NewGathering(
                 title: trimmedTitle,
                 details: trimmedDetails,
+                meetingNote: trimmedNote,
                 startsAt: startsAt,
                 durationMinutes: durationMinutes,
                 placeName: String(place.name.prefix(120)),

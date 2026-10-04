@@ -90,6 +90,7 @@ final class AppModel {
                 phase = .ready
                 await startPush()
                 await refreshJournal()
+                await syncGatheringReminders()
             } else {
                 phase = .needsProfile
             }
@@ -106,6 +107,12 @@ final class AppModel {
     func didBecomeActive() async {
         guard phase == .ready else { return }
         await refreshJournal()
+        await syncGatheringReminders()
+    }
+
+    private func syncGatheringReminders() async {
+        guard let backend, let upcoming = try? await backend.myUpcomingGatherings() else { return }
+        await NotificationScheduler.syncReminders(with: upcoming)
     }
 
     func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws {

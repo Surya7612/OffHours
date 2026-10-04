@@ -72,7 +72,11 @@ enum NotificationScheduler {
 
         let content = UNMutableNotificationContent()
         content.title = "\(gathering.title) in an hour"
-        content.body = "At \(gathering.placeName). Leave your phone in your pocket once you arrive."
+        content.body = if let spot = gathering.meetingSpot {
+            "At \(gathering.placeName): \(spot)"
+        } else {
+            "At \(gathering.placeName). Leave your phone in your pocket once you arrive."
+        }
         content.sound = .default
         content.threadIdentifier = "gatherings"
 
@@ -87,6 +91,20 @@ enum NotificationScheduler {
 
     static func cancelReminder(for gatheringID: UUID) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [gatheringPrefix + gatheringID.uuidString])
+    }
+
+    /// Makes pending reminders match the gatherings someone is still going to, so cancelled or
+    /// moderated gatherings stop reminding them and changed times or meeting spots are picked up.
+    static func syncReminders(with upcoming: [Gathering]) async {
+        let center = UNUserNotificationCenter.current()
+        let keep = Set(upcoming.map { gatheringPrefix + $0.id.uuidString })
+        let stale = await center.pendingNotificationRequests()
+            .map(\.identifier)
+            .filter { $0.hasPrefix(gatheringPrefix) && !keep.contains($0) }
+        center.removePendingNotificationRequests(withIdentifiers: stale)
+        for gathering in upcoming {
+            await scheduleReminder(for: gathering)
+        }
     }
 
     static func removeAll() {

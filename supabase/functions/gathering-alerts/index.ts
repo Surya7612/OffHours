@@ -1,7 +1,7 @@
-// Sends push alerts. Called by the app right after a user hosts or joins a gathering, or files
-// a report.
+// Sends push alerts. Called by the app right after a user hosts, joins or cancels a gathering,
+// or files a report.
 //
-// POST { "type": "created" | "joined", "gathering_id": "<uuid>" }
+// POST { "type": "created" | "joined" | "cancelled", "gathering_id": "<uuid>" }
 // POST { "type": "reported", "report_id": "<uuid>" }
 // Authorization: Bearer <the signed-in user's access token>
 //
@@ -75,7 +75,23 @@ Deno.serve(async (request) => {
     .select("id, host_id, host_name, title, starts_at, place_name, cancelled")
     .eq("id", body.gathering_id)
     .maybeSingle<Gathering>();
-  if (!gathering || gathering.cancelled) return json({ sent: 0 });
+  if (!gathering) return json({ sent: 0 });
+
+  if (body.type === "cancelled") {
+    const { data, error } = await admin.rpc("claim_cancel_alert", {
+      p_gathering_id: gathering.id,
+      p_host_id: user.id,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const sent = await sendPush((data ?? []) as Device[], {
+      title: `Cancelled: ${gathering.title}`,
+      body: `${gathering.host_name} cancelled this gathering. No need to head to ${gathering.place_name}.`,
+      threadID: `gathering-${gathering.id}`,
+    }, forgetDevice);
+    return json({ sent });
+  }
+
+  if (gathering.cancelled) return json({ sent: 0 });
 
   if (body.type === "created") {
     const { data, error } = await admin.rpc("claim_new_gathering_alerts", {
@@ -108,7 +124,7 @@ Deno.serve(async (request) => {
     return json({ sent });
   }
 
-  return json({ error: "type must be created, joined or reported" }, 400);
+  return json({ error: "type must be created, joined, cancelled or reported" }, 400);
 });
 
 /** "Tomorrow, 6:30 PM" style text. Uses the server clock, so keep it relative and coarse. */

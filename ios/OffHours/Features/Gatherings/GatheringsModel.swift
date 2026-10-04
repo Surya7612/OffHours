@@ -86,6 +86,16 @@ final class GatheringsModel {
         try await backend.cancel(gatheringID: gathering.id)
         NotificationScheduler.cancelReminder(for: gathering.id)
         going.removeAll { $0.id == gathering.id }
+        Task { await backend.sendGatheringAlert(.cancelled, gatheringID: gathering.id) }
+    }
+
+    func updateMeetingNote(_ note: String, for gathering: Gathering, app: AppModel) async throws {
+        guard let backend = app.backend else { return }
+        try await backend.updateMeetingNote(gatheringID: gathering.id, note: note)
+        if let index = going.firstIndex(where: { $0.id == gathering.id }) {
+            going[index].meetingNote = note
+            await NotificationScheduler.scheduleReminder(for: going[index])
+        }
     }
 
     func blockHost(of gathering: Gathering, app: AppModel) async throws {
