@@ -1,4 +1,15 @@
 -- Two-way blocking, weekly gatherings, logging gatherings in the journal, and usage numbers.
+-- Safe to run again if an earlier attempt stopped partway.
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'gatherings' and column_name = 'meeting_note'
+  ) then
+    raise exception 'Run 20261004030000_gathering_details.sql first';
+  end if;
+end $$;
 
 -- Blocking works both ways: neither person sees the other's gatherings ---------------------------
 
@@ -15,7 +26,8 @@ $$;
 revoke execute on function public.blocked_with_me(uuid) from public, anon;
 grant execute on function public.blocked_with_me(uuid) to authenticated;
 
-drop policy "See gatherings from people you have not blocked" on public.gatherings;
+drop policy if exists "See gatherings from people you have not blocked" on public.gatherings;
+drop policy if exists "See gatherings unless either person blocked the other" on public.gatherings;
 create policy "See gatherings unless either person blocked the other" on public.gatherings
   for select to authenticated
   using (host_id = (select auth.uid()) or not public.blocked_with_me(host_id));
@@ -24,8 +36,8 @@ create policy "See gatherings unless either person blocked the other" on public.
 -- A series is up to 4 weekly dates created together. Each date is its own gathering with its own
 -- RSVPs; a whole series counts once toward the hosting limits.
 
-alter table public.gatherings add column series_id uuid;
-create index gatherings_series on public.gatherings (series_id) where series_id is not null;
+alter table public.gatherings add column if not exists series_id uuid;
+create index if not exists gatherings_series on public.gatherings (series_id) where series_id is not null;
 
 create or replace function public.gatherings_limits() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -75,12 +87,12 @@ begin
   return new;
 end $$;
 
-create trigger gatherings_keep_series before update on public.gatherings
+create or replace trigger gatherings_keep_series before update on public.gatherings
   for each row execute function public.gatherings_keep_series();
 
 -- The list functions gain series_id.
-drop function public.nearby_gatherings(double precision, double precision, double precision);
-drop function public.my_upcoming_gatherings();
+drop function if exists public.nearby_gatherings(double precision, double precision, double precision);
+drop function if exists public.my_upcoming_gatherings();
 
 create function public.nearby_gatherings(
   p_lat double precision,
@@ -207,6 +219,8 @@ grant execute on function public.gatherings_to_log() to authenticated;
 
 create schema if not exists insights;
 revoke all on schema insights from public;
+
+drop view if exists insights.daily, insights.retention, insights.totals, insights.top_activities;
 
 create view insights.daily as
   with days as (

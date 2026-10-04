@@ -1,11 +1,13 @@
 -- Meeting spots, attendee names for hosts, and telling attendees when a gathering is cancelled.
 
+-- Safe to run again if an earlier attempt stopped partway.
+
 alter table public.gatherings
-  add column meeting_note text not null default '' check (char_length(meeting_note) <= 140);
+  add column if not exists meeting_note text not null default '' check (char_length(meeting_note) <= 140);
 
 -- The list functions gain meeting_note, which changes their return type.
-drop function public.nearby_gatherings(double precision, double precision, double precision);
-drop function public.my_upcoming_gatherings();
+drop function if exists public.nearby_gatherings(double precision, double precision, double precision);
+drop function if exists public.my_upcoming_gatherings();
 
 create function public.nearby_gatherings(
   p_lat double precision,
@@ -110,7 +112,7 @@ grant execute on function public.gathering_attendees(uuid) to authenticated;
 
 -- Cancellation alerts (server-only) -----------------------------------------------------------
 
-create table public.cancel_alerts_sent (
+create table if not exists public.cancel_alerts_sent (
   gathering_id uuid primary key references public.gatherings (id) on delete cascade,
   sent_at timestamptz not null default now()
 );
