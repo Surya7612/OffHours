@@ -56,11 +56,6 @@ VITE_SUPABASE_ANON_KEY="your_supabase_key"
 
 ### 🎯 Mock Services (Intentionally Fake)
 
-#### Luma Events Integration (`src/utils/lumaIntegration.ts`)
-- **12 realistic mock events** with real NYC locations
-- **Status**: ✅ INTENTIONAL - Shows integration capability
-- **Note**: In production, this connects to real Luma API
-
 #### RevenueCat Service (`src/utils/revenueCat.ts`)
 - **Mock subscription handling** with localStorage
 - **Status**: ✅ INTENTIONAL - Demonstrates subscription flow

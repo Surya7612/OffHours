@@ -23,3 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# iOS
+ios/OffHours/Config/Secrets.xcconfig
+ios/build/
+.spm/
+ios/DerivedData/
+xcuserdata/
+*.xcuserstate
+supabase/.temp/
+
+# Apple keys
+*.p8

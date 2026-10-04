@@ -10,7 +10,6 @@ Your OffHours app is already incredibly polished and feature-complete. Here's wh
 - **Real-time Notifications** and activity tracking
 - **AI-Powered Activity Suggestions** based on user preferences
 - **Pod System** for community building
-- **Luma Events Integration** for external event discovery
 - **Calendar & Scheduling** with activity planning
 - **Achievement System** with gamification
 - **Dark/Light Theme** with beautiful UI/UX
