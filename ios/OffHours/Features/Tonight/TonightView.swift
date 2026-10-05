@@ -80,7 +80,7 @@ struct TonightView: View {
 
                     happeningNearby
 
-                    if let weatherAttribution {
+                    if conditions?.summary != nil {
                         WeatherAttributionView(attribution: weatherAttribution, colorScheme: colorScheme)
                     }
                 }
@@ -91,7 +91,7 @@ struct TonightView: View {
             .toolbar(.hidden, for: .navigationBar)
             .refreshable {
                 await model.refreshJournal()
-                await loadAround()
+                await loadAround(fresh: true)
             }
             .task(id: LoadTrigger(activations: model.activations, locationAllowed: model.location.isAuthorized)) {
                 await loadAround()
@@ -118,21 +118,10 @@ struct TonightView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                HStack(spacing: 6) {
-                    Text(Date.now, format: .dateTime.weekday(.wide).month().day())
-                    if let summary = conditions?.summary {
-                        Text("·")
-                        Label(summary, systemImage: conditions?.symbol ?? "cloud")
-                            .labelStyle(.titleAndIcon)
-                    } else if let sunset = conditions?.sunset, sunset > .now {
-                        Text("·")
-                        Label("Sunset \(sunset.formatted(date: .omitted, time: .shortened))", systemImage: "sunset")
-                    }
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                Text(Date.now, format: .dateTime.weekday(.wide).month().day())
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
 
                 Spacer(minLength: 0)
 
@@ -150,10 +139,34 @@ struct TonightView: View {
                     .font(.title2)
                     .foregroundStyle(.secondary)
             }
+            conditionsLine
             Text(greeting)
                 .font(.system(.largeTitle, design: .serif, weight: .semibold))
         }
         .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var conditionsLine: some View {
+        if let summary = conditions?.summary {
+            Label(summary, systemImage: conditions?.symbol ?? "cloud")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        } else if model.location.isDenied {
+            Button("Turn on location to see the weather") { openSettings() }
+                .font(.subheadline.weight(.medium))
+        } else if let sunset = conditions?.sunset {
+            Label("Sunset \(sunset.formatted(date: .omitted, time: .shortened))", systemImage: "sunset")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 
     private var greeting: String {
@@ -234,14 +247,14 @@ struct TonightView: View {
 
     /// Everything on Tonight that depends on the world outside: weather and sunset, gatherings in
     /// the next day (ones you're going to first), and past gatherings to log.
-    private func loadAround() async {
+    private func loadAround(fresh: Bool = false) async {
         guard let backend = model.backend, let profile else { return }
         let cutoff = Date.now.addingTimeInterval(24 * 60 * 60)
         async let going = backend.myUpcomingGatherings()
         async let unlogged = backend.gatheringsToLog()
         var nearby: [Gathering] = []
         if await model.location.isAllowed(), let here = await model.location.currentLocation() {
-            async let weather = WeatherProvider.conditions(at: here)
+            async let weather = WeatherProvider.conditions(at: here, fresh: fresh)
             nearby = (try? await backend.nearbyGatherings(
                 latitude: here.coordinate.latitude,
                 longitude: here.coordinate.longitude,
@@ -505,18 +518,22 @@ private struct LogGatheringSheet: View {
 
 /// Apple Weather's mark and legal link, required wherever WeatherKit data is shown.
 private struct WeatherAttributionView: View {
-    let attribution: WeatherProvider.Attribution
+    let attribution: WeatherProvider.Attribution?
     let colorScheme: ColorScheme
 
     var body: some View {
         HStack(spacing: 8) {
-            AsyncImage(url: colorScheme == .dark ? attribution.darkMark : attribution.lightMark) { image in
-                image.resizable().scaledToFit()
-            } placeholder: {
-                Text(" Weather")
+            if let attribution {
+                AsyncImage(url: colorScheme == .dark ? attribution.darkMark : attribution.lightMark) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    Text(" Weather")
+                }
+                .frame(height: 12)
+            } else {
+                Text(" Weather")
             }
-            .frame(height: 12)
-            Link("Data sources", destination: attribution.legalPage)
+            Link("Data sources", destination: attribution?.legalPage ?? WeatherProvider.legalPage)
         }
         .font(.caption2)
         .foregroundStyle(.secondary)

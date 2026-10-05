@@ -70,6 +70,14 @@ struct SettingsView: View {
                     .padding(.vertical, 6)
                 }
 
+                if let problem = WeatherProvider.lastProblem {
+                    Section("Weather") {
+                        Text(problem)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("About") {
                     Link("Privacy Policy", destination: AppConfig.privacyPolicyURL)
                     Link("Terms & Community Rules", destination: AppConfig.termsURL)
