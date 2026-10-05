@@ -3,14 +3,52 @@
 Reclaim the hour after work. Every evening OffHours suggests one small, phone-free thing to do,
 points you to a real place nearby to do it, and lets neighbors host small gatherings.
 
+A native iOS app built end to end by [Surya Nediyadeth](mailto:connect@suryanediyadeth.com):
+product, design, SwiftUI client, Supabase backend, push infrastructure, moderation, and App Store
+release.
+
+<p align="center">
+  <img src="docs/images/tonight.png" width="200" alt="Tonight: one suggestion for the evening">
+  <img src="docs/images/session.png" width="200" alt="Activity timer that continues on the Lock Screen">
+  <img src="docs/images/journal.png" width="200" alt="Journal with streaks and minutes offline">
+  <img src="docs/images/host-gathering.png" width="200" alt="Hosting a weekly gathering">
+</p>
+<p align="center">
+  <img src="docs/images/widget.png" width="340" alt="Home Screen widget">
+</p>
+
+## Highlights
+
+- **Native SwiftUI on iOS 18** with Swift 6 strict concurrency, `@Observable` state, and no
+  third-party UI code. The project is generated with XcodeGen.
+- **WidgetKit and ActivityKit**: a Home Screen and Lock Screen widget that shares data with the
+  app through an App Group, and a Live Activity countdown on the Lock Screen and Dynamic Island.
+- **Context-aware suggestions**: picks are deterministic per person and day, so a notification
+  scheduled days ahead matches what the app shows. WeatherKit and an on-device sunset calculation
+  move outdoor ideas aside on rainy or dark evenings.
+- **Real places, not a database of them**: MapKit finds the nearest park, café, library, museum or
+  waterfront on device.
+- **Supabase backend secured by row level security** on every table. Location-based queries,
+  hosting limits, rate limits and two-way blocking are enforced in Postgres, not the client.
+  The policies are covered by SQL tests that run against a throwaway database.
+- **Server-side push with no third-party service**: Deno Edge Functions sign APNs requests with
+  ES256 JWTs and send to sandbox or production devices as needed. They handle nearby-gathering
+  alerts (at most one a day), join and cancellation notices, and moderator alerts.
+- **App Store requirements built in**: Sign in with Apple with token revocation on account
+  deletion, report and block on all user content, moderator tools, a privacy manifest, and a
+  published privacy policy.
+
+**Stack:** Swift 6, SwiftUI, WidgetKit, ActivityKit, MapKit, WeatherKit, Swift Testing ·
+Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
+
 ## What's in this repo
 
 | Path | What it is |
 | --- | --- |
-| `ios/` | The native SwiftUI app (iOS 18+). This is what ships to the App Store. |
-| `supabase/` | Database schema, row level security, and policy tests. |
-| `docs/legal/` | Privacy policy and terms to host before submitting. |
-| `src/`, `public/` | The original React web prototype, kept for reference. |
+| `ios/` | The native SwiftUI app and its widget extension (iOS 18+). This is what ships to the App Store. |
+| `supabase/` | Migrations, row level security, Edge Functions, and database tests. |
+| `docs/` | Privacy policy and terms, App Store listing copy, and screenshots. |
+| `prototype/` | The original React web prototype the app grew out of, kept for reference. |
 
 ## How it works
 
@@ -185,3 +223,8 @@ xcodebuild -exportArchive -archivePath /tmp/OffHours.xcarchive \
    Apple finishes processing it.
 
 Regenerate the app icon with `swift ios/Tools/MakeIcon.swift ios/OffHours/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png`.
+
+## License
+
+© 2026 Surya Nediyadeth. All rights reserved. The source is public to read and learn from; it
+isn't licensed for reuse or redistribution.
