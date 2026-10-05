@@ -88,11 +88,7 @@ struct TonightView: View {
                 .padding(.bottom, 32)
             }
             .background(Color(.systemGroupedBackground))
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Settings", systemImage: "person.crop.circle") { showSettings = true }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .refreshable {
                 await model.refreshJournal()
                 await loadAround()
@@ -118,8 +114,8 @@ struct TonightView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
                 HStack(spacing: 6) {
                     Text(Date.now, format: .dateTime.weekday(.wide).month().day())
                     if let summary = conditions?.summary {
@@ -128,25 +124,32 @@ struct TonightView: View {
                             .labelStyle(.titleAndIcon)
                     } else if let sunset = conditions?.sunset, sunset > .now {
                         Text("·")
-                        Label(sunset.formatted(date: .omitted, time: .shortened), systemImage: "sunset")
+                        Label("Sunset \(sunset.formatted(date: .omitted, time: .shortened))", systemImage: "sunset")
                     }
                 }
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                Text(greeting)
-                    .font(.system(.largeTitle, design: .serif, weight: .semibold))
+                .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 0)
+
+                if model.stats.currentStreak > 0 {
+                    Label("\(model.stats.currentStreak)", systemImage: "flame.fill")
+                        .font(.headline)
+                        .foregroundStyle(Theme.ember)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Theme.ember.opacity(0.12), in: .capsule)
+                        .accessibilityLabel("\(model.stats.currentStreak) day streak")
+                }
+                Button("Settings", systemImage: "person.crop.circle") { showSettings = true }
+                    .labelStyle(.iconOnly)
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            if model.stats.currentStreak > 0 {
-                Label("\(model.stats.currentStreak)", systemImage: "flame.fill")
-                    .font(.headline)
-                    .foregroundStyle(Theme.ember)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Theme.ember.opacity(0.12), in: .capsule)
-                    .accessibilityLabel("\(model.stats.currentStreak) day streak")
-            }
+            Text(greeting)
+                .font(.system(.largeTitle, design: .serif, weight: .semibold))
         }
         .padding(.top, 8)
     }

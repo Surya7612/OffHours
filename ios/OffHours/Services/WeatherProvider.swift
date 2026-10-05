@@ -1,9 +1,11 @@
 import CoreLocation
 import Foundation
+import OSLog
 import WeatherKit
 
 /// Tonight's conditions. Sunset always works offline; weather comes from Apple Weather and is
-/// skipped quietly if it's unavailable.
+/// skipped if it's unavailable.
+@MainActor
 enum WeatherProvider {
     struct Attribution: Equatable, Sendable {
         var lightMark: URL
@@ -11,18 +13,37 @@ enum WeatherProvider {
         var legalPage: URL
     }
 
+    private struct Cached {
+        let location: CLLocation
+        let fetchedAt: Date
+        let conditions: EveningConditions
+        let attribution: Attribution
+    }
+
+    private static var cached: Cached?
+    private static let log = Logger(subsystem: "com.suryanediyadeth.offhours", category: "weather")
+
     static func conditions(at location: CLLocation, now: Date = .now) async -> (EveningConditions, Attribution?) {
         let sunset = SunCalculator.sunset(
             on: now,
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude
         )
+        if let cached, now.timeIntervalSince(cached.fetchedAt) < 30 * 60,
+           cached.location.distance(from: location) < 2_000 {
+            var conditions = cached.conditions
+            conditions.sunset = sunset
+            return (conditions, cached.attribution)
+        }
         var conditions = EveningConditions(sunset: sunset)
 
         do {
             let service = WeatherService.shared
-            let (current, hourly) = try await service.weather(for: location, including: .current, .hourly)
-            let nextHours = hourly.forecast.filter { $0.date > now && $0.date < now.addingTimeInterval(3 * 3600) }
+            let (current, hourly) = try await service.weather(
+                for: location,
+                including: .current, .hourly(startDate: now, endDate: now.addingTimeInterval(3 * 3600))
+            )
+            let nextHours = hourly.forecast
             let celsius = current.temperature.converted(to: .celsius).value
             let wetSoon = nextHours.contains { $0.precipitationChance >= 0.5 }
             conditions.weather = if current.condition.isWet || wetSoon {
@@ -38,14 +59,19 @@ enum WeatherProvider {
             conditions.summary = "\(temperature) · \(current.condition.description)"
             conditions.symbol = current.symbolName
 
-            let attribution = try await service.attribution
-            return (conditions, Attribution(
-                lightMark: attribution.combinedMarkLightURL,
-                darkMark: attribution.combinedMarkDarkURL,
-                legalPage: attribution.legalPageURL
-            ))
+            let mark = try await service.attribution
+            let attribution = Attribution(
+                lightMark: mark.combinedMarkLightURL,
+                darkMark: mark.combinedMarkDarkURL,
+                legalPage: mark.legalPageURL
+            )
+            cached = Cached(location: location, fetchedAt: now, conditions: conditions, attribution: attribution)
+            return (conditions, attribution)
         } catch {
-            return (conditions, nil)
+            // Usually WeatherKit not being enabled for the App ID yet, or no network.
+            log.error("Weather unavailable: \(error.localizedDescription, privacy: .public)")
+            // Weather can't be shown without Apple's attribution, so drop all of it.
+            return (EveningConditions(sunset: sunset), nil)
         }
     }
 }
