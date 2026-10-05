@@ -29,6 +29,13 @@ final class LocationService: NSObject {
         authorization == .denied || authorization == .restricted
     }
 
+    /// Whether location is allowed, once CoreLocation has reported the real status. `isAuthorized`
+    /// reads false until then. Never shows the permission prompt.
+    func isAllowed() async -> Bool {
+        await waitForInitialStatus()
+        return isAuthorized
+    }
+
     private func waitForInitialStatus() async {
         guard !hasInitialStatus else { return }
         await withCheckedContinuation { initialStatusWaiters.append($0) }

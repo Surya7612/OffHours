@@ -93,7 +93,9 @@ struct TonightView: View {
                 await model.refreshJournal()
                 await loadAround()
             }
-            .task(id: model.activations) { await loadAround() }
+            .task(id: LoadTrigger(activations: model.activations, locationAllowed: model.location.isAuthorized)) {
+                await loadAround()
+            }
             .task(id: activity?.id) {
                 model.showingTonight(model.completedToday.isEmpty ? activity : nil)
                 guard let activity else { return }
@@ -238,7 +240,7 @@ struct TonightView: View {
         async let going = backend.myUpcomingGatherings()
         async let unlogged = backend.gatheringsToLog()
         var nearby: [Gathering] = []
-        if model.location.isAuthorized, let here = await model.location.currentLocation() {
+        if await model.location.isAllowed(), let here = await model.location.currentLocation() {
             async let weather = WeatherProvider.conditions(at: here)
             nearby = (try? await backend.nearbyGatherings(
                 latitude: here.coordinate.latitude,
@@ -275,6 +277,12 @@ struct TonightView: View {
         guard let location = await model.location.currentLocation() else { return }
         places = Array(await PlaceFinder.nearest(kind, around: location, withinKm: profile.radiusKm).prefix(5))
     }
+}
+
+/// Tonight reloads when the app returns to the foreground and when location access is granted.
+private struct LoadTrigger: Equatable {
+    var activations: Int
+    var locationAllowed: Bool
 }
 
 private struct ActivityHeroCard: View {
