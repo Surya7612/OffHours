@@ -59,9 +59,19 @@ extension NudgePicker {
         for date: Date,
         profile: Profile,
         conditions: EveningConditions?,
-        library: [Activity] = ActivityLibrary.all
+        library: [Activity] = ActivityLibrary.all,
+        intent: TonightIntent? = nil,
+        feedback: ActivityFeedback = ActivityFeedback(),
+        history: [ActivityLog] = []
     ) -> (ranked: [Activity], reason: String?) {
-        let base = ranked(for: date, profile: profile, library: library)
+        let base = ranked(
+            for: date,
+            profile: profile,
+            library: library,
+            intent: intent,
+            feedback: feedback,
+            history: history
+        )
         guard let conditions else { return (base, nil) }
         let isPoorFit: (Activity) -> Bool = if conditions.keepsPeopleIndoors {
             \.isOutdoor

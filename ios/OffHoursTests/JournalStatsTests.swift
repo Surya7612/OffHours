@@ -59,6 +59,24 @@ struct NudgePickerTests {
         radiusKm: 3
     )
 
+    private func activity(
+        _ id: String,
+        kind: Activity.Kind = .mindful,
+        minutes: Int = 20,
+        place: Activity.PlaceKind? = nil
+    ) -> Activity {
+        Activity(
+            id: id,
+            title: id,
+            summary: id,
+            kind: kind,
+            minutes: minutes,
+            interests: [.walking],
+            times: [.evening],
+            place: place
+        )
+    }
+
     @Test func sameDayGivesSamePick() {
         let day = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(NudgePicker.pick(for: day, profile: profile) == NudgePicker.pick(for: day.addingTimeInterval(3600), profile: profile))
@@ -79,5 +97,84 @@ struct NudgePickerTests {
     @Test func libraryIDsAreUnique() {
         let ids = ActivityLibrary.all.map(\.id)
         #expect(Set(ids).count == ids.count)
+    }
+
+    @Test func tonightIntentPrioritizesAPlanThatFits() {
+        let shortAndFree = activity("short-free", minutes: 15)
+        let longAndPaid = activity("long-paid", kind: .movement, minutes: 60, place: .cafe)
+        let intent = TonightIntent(time: .quick, energy: .low, budget: .free, company: .solo)
+        let ranked = NudgePicker.ranked(
+            for: Date(timeIntervalSince1970: 1_790_000_000),
+            profile: profile,
+            library: [longAndPaid, shortAndFree],
+            intent: intent
+        )
+        #expect(ranked.first == shortAndFree)
+    }
+
+    @Test func socialIntentPrioritizesSocialActivities() {
+        let solo = activity("solo", kind: .mindful)
+        let social = activity("social", kind: .social)
+        let intent = TonightIntent(time: .halfHour, energy: .steady, budget: .flexible, company: .social)
+        let ranked = NudgePicker.ranked(
+            for: Date(timeIntervalSince1970: 1_790_000_000),
+            profile: profile,
+            library: [solo, social],
+            intent: intent
+        )
+        #expect(ranked.first == social)
+    }
+
+    @Test func repeatedSkipsMoveAnActivityDown() throws {
+        let one = activity("one")
+        let two = activity("two")
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let initial = try #require(NudgePicker.ranked(for: date, profile: profile, library: [one, two]).first)
+        var feedback = ActivityFeedback()
+        for _ in 0..<3 { feedback.skipped(initial.id) }
+        let adjusted = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [one, two],
+            feedback: feedback
+        )
+        #expect(adjusted.first?.id != initial.id)
+    }
+
+    @Test func repeatedCompletionsTeachThePicker() throws {
+        let one = activity("one")
+        let two = activity("two")
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let initial = try #require(NudgePicker.ranked(for: date, profile: profile, library: [one, two]).first)
+        let learned = initial == one ? two : one
+        let history = (0..<3).map { index in
+            ActivityLog(
+                id: UUID(),
+                activityID: learned.id,
+                title: learned.title,
+                kind: learned.kind.rawValue,
+                durationMinutes: learned.minutes,
+                placeName: nil,
+                reflection: nil,
+                completedAt: date.addingTimeInterval(TimeInterval(-index * 86_400))
+            )
+        }
+        let adjusted = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [one, two],
+            history: history
+        )
+        #expect(adjusted.first == learned)
+    }
+
+    @Test func checkInExpiresAtMidnight() throws {
+        let userID = UUID()
+        let day = Date(timeIntervalSince1970: 1_790_000_000)
+        let intent = TonightIntent(time: .quick, energy: .active, budget: .free, company: .either)
+        TonightPersonalizationStore.save(intent, for: userID, on: day)
+        #expect(TonightPersonalizationStore.intent(for: userID, on: day) == intent)
+        #expect(TonightPersonalizationStore.intent(for: userID, on: day.addingTimeInterval(86_400)) == nil)
+        TonightPersonalizationStore.clear(userID: userID)
     }
 }

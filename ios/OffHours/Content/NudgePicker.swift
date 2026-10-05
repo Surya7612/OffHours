@@ -7,11 +7,17 @@ enum NudgePicker {
         for day: Date,
         profile: Profile,
         library: [Activity] = ActivityLibrary.all,
+        intent: TonightIntent? = nil,
+        feedback: ActivityFeedback = ActivityFeedback(),
+        history: [ActivityLog] = [],
         calendar: Calendar = .current
     ) -> [Activity] {
         let time = Activity.TimeOfDay(hour: profile.nudgeHour)
         let interests = Set(profile.interests.compactMap(Interest.init(rawValue:)))
         var rng = SeededGenerator(seed: seed(for: day, userID: profile.id, calendar: calendar))
+        let recent = history.filter { day.timeIntervalSince($0.completedAt) < 90 * 86_400 }
+        let completedByID = Dictionary(grouping: recent, by: \.activityID).mapValues(\.count)
+        let completedByKind = Dictionary(grouping: recent, by: \.kind).mapValues(\.count)
 
         let candidates = library.filter { $0.times.contains(time) }
         let pool = candidates.isEmpty ? library : candidates
@@ -22,6 +28,13 @@ enum NudgePicker {
                 let matches = activity.interests.intersection(interests).count
                 var score = matches > 0 ? 10 + Double(matches - 1) * 3 : 0
                 if activity.minutes <= 30 { score += 3 }
+                if let intent { score += intentScore(activity, intent: intent) }
+
+                // A completion is a quiet positive signal; a skip is stronger but never removes
+                // an activity forever. This preserves variety instead of creating a filter bubble.
+                score += Double(min(completedByID[activity.id] ?? 0, 3)) * 5
+                score += Double(min(completedByKind[activity.kind.rawValue] ?? 0, 6))
+                score -= Double(feedback.skipCount(for: activity.id)) * 5
                 score += Double.random(in: 0..<14, using: &rng)
                 return (activity, score)
             }
@@ -31,6 +44,35 @@ enum NudgePicker {
 
     static func pick(for day: Date, profile: Profile) -> Activity {
         ranked(for: day, profile: profile).first ?? ActivityLibrary.all[0]
+    }
+
+    private static func intentScore(_ activity: Activity, intent: TonightIntent) -> Double {
+        var score = 0.0
+
+        if activity.minutes <= intent.time.maximumMinutes {
+            score += 18
+        } else {
+            score -= Double(min(activity.minutes - intent.time.maximumMinutes, 45)) * 0.7
+        }
+
+        let energyOrder: [TonightIntent.Energy] = [.low, .steady, .active]
+        let activityEnergy = energyOrder.firstIndex(of: activity.energy) ?? 1
+        let wantedEnergy = energyOrder.firstIndex(of: intent.energy) ?? 1
+        score += activityEnergy == wantedEnergy ? 12 : (abs(activityEnergy - wantedEnergy) == 1 ? 3 : -8)
+
+        if intent.budget == .free {
+            score += activity.mayCostMoney ? -20 : 4
+        }
+
+        switch intent.company {
+        case .solo:
+            score += activity.isSocial ? -14 : 10
+        case .social:
+            score += activity.isSocial ? 16 : -8
+        case .either:
+            break
+        }
+        return score
     }
 
     private static func seed(for day: Date, userID: UUID, calendar: Calendar) -> UInt64 {

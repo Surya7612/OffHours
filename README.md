@@ -54,8 +54,10 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
 
 - **Sign in with Apple** through Supabase Auth. No passwords.
 - **Tonight**: a daily activity picked from a curated library based on your interests and nudge
-  time. Activities that need a place (park, café, library, waterfront, museum) are anchored to
-  the nearest real one using Apple Maps on device, with walking directions.
+  time. A four-part check-in tunes it to the time, energy, budget and company that fit right now.
+  Skips and journal completions teach the picker over time; check-ins and skip history stay on
+  the device. Activities that need a place (park, café, library, waterfront, museum) are anchored
+  to the nearest real one using Apple Maps on device, with walking directions.
 - **Timer and journal**: start the activity, lock your phone, get a notification when time is
   up, write one line about it. Streaks and totals come from your journal in Supabase.
 - **Gatherings**: anyone can host a small meetup at a public place. Nearby people can join until

@@ -48,6 +48,7 @@
 		A9477602371CBFEB96FB9E6A /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0A14E32C8670C90F67709B /* ProfileSetupView.swift */; };
 		B5D368C322BF23BE8636147F /* OffHoursWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C05CD31275A977C3E34209D /* OffHoursWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BAB789F8DF9145475E14D4AB /* Activity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2E6BD6089FE8DE3E16A134 /* Activity.swift */; };
+		BEF613AEF719AE99D049443B /* TonightIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F21F0FC0BE64BA7F8EFDB7 /* TonightIntent.swift */; };
 		D3E15970B7AD5765834D16AB /* ContentFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78301C22586225C7B83EFCE9 /* ContentFilter.swift */; };
 		DB311692AB546F5FA023F852 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A063497C40B780091B0D8F1D /* SettingsView.swift */; };
 		DE1B2D22BA5135F25007F0F9 /* SessionActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2A0C947F6844BF6E645160 /* SessionActivityAttributes.swift */; };
@@ -127,6 +128,7 @@
 		C04B957CFA3D1FAAC798C852 /* ActivityLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLibrary.swift; sourceTree = "<group>"; };
 		C22E732C8789404843AE5200 /* ActivitySessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySessionView.swift; sourceTree = "<group>"; };
 		C23B8ED7EB8A683B8948C82B /* EveningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EveningTests.swift; sourceTree = "<group>"; };
+		C8F21F0FC0BE64BA7F8EFDB7 /* TonightIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonightIntent.swift; sourceTree = "<group>"; };
 		CDCCDD5B0FA663455EA5F159 /* OffHours.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OffHours.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF2E6BD6089FE8DE3E16A134 /* Activity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Activity.swift; sourceTree = "<group>"; };
 		D30A36314CC8CDC1183B6B1E /* GatheringDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatheringDetailView.swift; sourceTree = "<group>"; };
@@ -346,6 +348,7 @@
 				6A2B197043CFAB840D6986AA /* ActivityLog.swift */,
 				2F6225E1397F92E7AD21F1E6 /* Gathering.swift */,
 				B496794EA5D37B5DADE6578F /* Profile.swift */,
+				C8F21F0FC0BE64BA7F8EFDB7 /* TonightIntent.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -536,6 +539,7 @@
 				1E9CE717097F95891E0AD691 /* SignInView.swift in Sources */,
 				06724A8FD67723553F155FFB /* SunCalculator.swift in Sources */,
 				62F4F35C3ACFD35ECED09CA8 /* Theme.swift in Sources */,
+				BEF613AEF719AE99D049443B /* TonightIntent.swift in Sources */,
 				13F1EE3594090333F4154E17 /* TonightView.swift in Sources */,
 				0647BBEF32E7EFD62F8374DF /* WeatherProvider.swift in Sources */,
 				7733C6734754CC6714195285 /* WidgetSnapshot.swift in Sources */,

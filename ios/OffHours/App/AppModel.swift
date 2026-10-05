@@ -157,7 +157,10 @@ final class AppModel {
     }
 
     private func clearLocalState() {
-        if let userID { ProfileCache.clear(userID: userID) }
+        if let userID {
+            ProfileCache.clear(userID: userID)
+            TonightPersonalizationStore.clear(userID: userID)
+        }
         nudgeTask?.cancel()
         NotificationScheduler.removeAll()
         PushRegistrar.shared.onToken = nil

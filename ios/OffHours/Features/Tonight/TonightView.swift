@@ -14,6 +14,10 @@ struct TonightView: View {
     @State private var loggingGathering: GatheringToLog?
     @State private var conditions: EveningConditions?
     @State private var weatherAttribution: WeatherProvider.Attribution?
+    @State private var intent: TonightIntent?
+    @State private var feedback = ActivityFeedback()
+    @State private var skippedTonight: Set<String> = []
+    @State private var showCheckIn = false
     @AppStorage("skippedGatheringLogs") private var skippedLogs = ""
     @Environment(\.colorScheme) private var colorScheme
 
@@ -21,10 +25,20 @@ struct TonightView: View {
 
     private var tonight: (ranked: [Activity], reason: String?) {
         guard let profile else { return ([], nil) }
-        return NudgePicker.tonight(for: .now, profile: profile, conditions: conditions)
+        return NudgePicker.tonight(
+            for: .now,
+            profile: profile,
+            conditions: conditions,
+            intent: intent,
+            feedback: feedback,
+            history: model.logs
+        )
     }
 
-    private var ranked: [Activity] { tonight.ranked }
+    private var ranked: [Activity] {
+        let remaining = tonight.ranked.filter { !skippedTonight.contains($0.id) }
+        return remaining.isEmpty ? tonight.ranked : remaining
+    }
 
     private var pendingLog: GatheringToLog? {
         let skipped = Set(skippedLogs.split(separator: ",").map(String.init))
@@ -54,14 +68,18 @@ struct TonightView: View {
                         )
                     }
 
+                    if model.completedToday.isEmpty || showDoAnother {
+                        TonightIntentCard(intent: intent) { showCheckIn = true }
+                    }
+
                     if let done = model.completedToday.first, !showDoAnother {
                         DoneTonightCard(log: done, streak: model.stats.currentStreak) {
-                            withAnimation { showDoAnother = true; choiceIndex = 1 }
+                            withAnimation { showDoAnother = true; choiceIndex = 0 }
                         }
                     } else if let activity {
                         ActivityHeroCard(
                             activity: activity,
-                            note: choiceIndex == 0 ? tonight.reason : nil,
+                            note: choiceIndex == 0 ? tonight.reason ?? personalizedNote : nil,
                             sunsetHint: conditions?.sunsetHint(for: activity, at: .now),
                             place: place,
                             placeCount: places.count,
@@ -70,7 +88,7 @@ struct TonightView: View {
                             onNextPlace: { placeIndex = (placeIndex + 1) % max(places.count, 1) },
                             onEnableLocation: { Task { await findPlaces(for: activity) } },
                             onStart: { session = ActivitySession(activity: activity, place: place) },
-                            onSomethingElse: { withAnimation(.snappy) { choiceIndex += 1 } }
+                            onSomethingElse: { skip(activity) }
                         )
                         .id(activity.id)
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
@@ -94,6 +112,7 @@ struct TonightView: View {
                 await loadAround(fresh: true)
             }
             .task(id: LoadTrigger(activations: model.activations, locationAllowed: model.location.isAuthorized)) {
+                loadPersonalization()
                 await loadAround()
             }
             .task(id: activity?.id) {
@@ -112,6 +131,52 @@ struct TonightView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showCheckIn) {
+                TonightCheckInSheet(initial: intent ?? TonightIntent()) { chosen in
+                    save(chosen)
+                }
+            }
+        }
+    }
+
+    private var personalizedNote: String? {
+        guard let intent else { return nil }
+        return switch intent.company {
+        case .solo: "A solo plan that fits your \(intent.time.label.lowercased())."
+        case .social: "Something social that fits your \(intent.time.label.lowercased())."
+        case .either: "Matched to your time and energy tonight."
+        }
+    }
+
+    private func loadPersonalization() {
+        guard let userID = model.userID else { return }
+        let saved = TonightPersonalizationStore.intent(for: userID)
+        if intent != saved {
+            intent = saved
+            skippedTonight = []
+            choiceIndex = 0
+        }
+        feedback = TonightPersonalizationStore.feedback(for: userID)
+    }
+
+    private func save(_ chosen: TonightIntent) {
+        guard let userID = model.userID else { return }
+        TonightPersonalizationStore.save(chosen, for: userID)
+        withAnimation(.snappy) {
+            intent = chosen
+            skippedTonight = []
+            choiceIndex = 0
+        }
+    }
+
+    private func skip(_ activity: Activity) {
+        if let userID = model.userID {
+            TonightPersonalizationStore.recordSkip(activityID: activity.id, for: userID)
+            feedback = TonightPersonalizationStore.feedback(for: userID)
+        }
+        withAnimation(.snappy) {
+            skippedTonight.insert(activity.id)
+            choiceIndex = 0
         }
     }
 
@@ -289,6 +354,105 @@ struct TonightView: View {
         defer { isFindingPlaces = false }
         guard let location = await model.location.currentLocation() else { return }
         places = Array(await PlaceFinder.nearest(kind, around: location, withinKm: profile.radiusKm).prefix(5))
+    }
+}
+
+private struct TonightIntentCard: View {
+    let intent: TonightIntent?
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                Image(systemName: intent == nil ? "slider.horizontal.3" : "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Theme.ember)
+                    .frame(width: 42, height: 42)
+                    .background(Theme.ember.opacity(0.12), in: .circle)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(intent == nil ? "What fits tonight?" : "Tonight is tuned")
+                        .font(.headline)
+                    Text(intent?.summary ?? "Time, energy, budget and company")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .card()
+    }
+}
+
+private struct TonightCheckInSheet: View {
+    let onSave: (TonightIntent) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: TonightIntent
+
+    init(initial: TonightIntent, onSave: @escaping (TonightIntent) -> Void) {
+        self.onSave = onSave
+        _draft = State(initialValue: initial)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("How much time do you have?") {
+                    Picker("Time", selection: $draft.time) {
+                        ForEach(TonightIntent.Time.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+
+                Section("How's your energy?") {
+                    Picker("Energy", selection: $draft.energy) {
+                        ForEach(TonightIntent.Energy.allCases) {
+                            Label($0.label, systemImage: $0.symbol).tag($0)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+
+                Section("What works tonight?") {
+                    Picker("Budget", selection: $draft.budget) {
+                        ForEach(TonightIntent.Budget.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("Company", selection: $draft.company) {
+                        ForEach(TonightIntent.Company.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section {
+                    Text("These answers stay on this iPhone and expire at midnight.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("What fits tonight?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Find my plan") {
+                        onSave(draft)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
     }
 }
 
