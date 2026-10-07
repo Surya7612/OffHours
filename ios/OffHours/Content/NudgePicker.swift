@@ -9,6 +9,7 @@ enum NudgePicker {
         library: [Activity] = ActivityLibrary.all,
         intent: TonightIntent? = nil,
         feedback: ActivityFeedback = ActivityFeedback(),
+        preferences: EveningPreferences = EveningPreferences(),
         history: [ActivityLog] = [],
         calendar: Calendar = .current
     ) -> [Activity] {
@@ -37,6 +38,7 @@ enum NudgePicker {
                 score += Double(min(feedback.likeCount(for: activity.kind.rawValue), 4)) * 4
                 score -= Double(feedback.skipCount(for: activity.id)) * 5
                 score -= feedbackPenalty(activity, feedback: feedback)
+                score -= preferencePenalty(activity, preferences: preferences)
                 score += Double.random(in: 0..<14, using: &rng)
                 return (activity, score)
             }
@@ -84,6 +86,16 @@ enum NudgePicker {
         if activity.mayCostMoney { penalty += Double(feedback.reasonCount(.costsMoney)) * 6 }
         if activity.energy == .active { penalty += Double(feedback.reasonCount(.tooMuchEnergy)) * 5 }
         if activity.isOutdoor { penalty += Double(feedback.reasonCount(.weather)) * 5 }
+        return penalty
+    }
+
+    /// Lasting preferences are stronger than one skip, and still weaker than a strong interest match plus variety.
+    private static func preferencePenalty(_ activity: Activity, preferences: EveningPreferences) -> Double {
+        var penalty = 0.0
+        if preferences.quieter, activity.isSocial { penalty += 18 }
+        if preferences.stayClose, activity.place != nil { penalty += 18 }
+        if preferences.preferIndoor, activity.isOutdoor { penalty += 20 }
+        if preferences.keepFree, activity.mayCostMoney { penalty += 22 }
         return penalty
     }
 

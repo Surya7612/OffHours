@@ -60,6 +60,7 @@ targets:
         UIBackgroundModes:
           - remote-notification
         NSLocationWhenInUseUsageDescription: OffHours uses your location to suggest real places near you for tonight's activity and to show gatherings in your neighborhood.
+        NSCalendarsWriteOnlyAccessUsageDescription: OffHours adds the evening you choose to your calendar. It does not read your other events.
         SupabaseHost: $(SUPABASE_HOST)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
     settings:

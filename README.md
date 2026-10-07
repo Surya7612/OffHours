@@ -56,7 +56,8 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
 - **Tonight**: a daily activity picked from a curated library based on your interests and nudge
   time. A four-part check-in tunes it to the time, energy, budget and company that fit right now.
   Skips and journal completions teach the picker over time. A skip can say why, and "More like
-  this" favors that kind of plan. Check-ins and this preference history stay on the device. Activities that need a place (park, café, library, waterfront, museum) are anchored
+  this" favors that kind of plan. Settings can also keep evenings quieter, closer to home, indoor, or free.
+  Check-ins and these preferences stay on the device. Activities that need a place (park, café, library, waterfront, museum) are anchored
   to the nearest real one using Apple Maps on device, with walking directions.
 - **Timer and journal**: start the activity, lock your phone, get a notification when time is
   up, write one line about it. Streaks and totals come from your journal in Supabase.
@@ -81,7 +82,10 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
   Dynamic Island), and the `OffHoursWidgets` extension shows tonight's pick, your streak and
   minutes this week on the Home Screen and Lock Screen. The app shares what to show through the
   `group.com.suryanediyadeth.offhours` App Group.
-- **Weekly recap**: a Sunday 7 PM local notification summarizing the week.
+- **Weekly recap**: a Sunday 7 PM local notification summarizing the week. The Journal can also share
+  that week as a card.
+- **Calendar**: Tonight and a gathering can be added to Apple Calendar. OffHours only writes that
+  event and does not read the rest of the calendar.
 - **Account deletion** in Settings removes the user and everything they own.
 
 ## First-time setup

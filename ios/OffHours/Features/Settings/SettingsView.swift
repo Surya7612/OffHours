@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var nudgeTime = Date.now
     @State private var radiusKm = 3
     @State private var notificationsOn = true
+    @State private var preferences = EveningPreferences()
     @State private var isSaving = false
     @State private var confirmSignOut = false
     @State private var confirmDelete = false
@@ -53,6 +54,17 @@ struct SettingsView: View {
                     Text("Gatherings")
                 } footer: {
                     Text("At most one alert a day when someone hosts within your distance. We keep an approximate location, rounded to about 1 km, only while this is on. Hosts are always told when someone joins.")
+                }
+
+                Section {
+                    Toggle("Quieter evenings", isOn: $preferences.quieter)
+                    Toggle("Stay close to home", isOn: $preferences.stayClose)
+                    Toggle("Prefer indoor", isOn: $preferences.preferIndoor)
+                    Toggle("Keep it free", isOn: $preferences.keepFree)
+                } header: {
+                    Text("What usually fits")
+                } footer: {
+                    Text("These stay on this iPhone and shape Tonight until you change them. Tonight's check-in still applies for today.")
                 }
 
                 Section("Interests") {
@@ -126,6 +138,10 @@ struct SettingsView: View {
                 }
             }
             .onAppear(perform: loadFromProfile)
+            .onChange(of: preferences) { _, updated in
+                guard let userID = model.userID else { return }
+                EveningPreferencesStore.save(updated, for: userID)
+            }
             .task { notificationsOn = await NotificationScheduler.isAuthorized() }
             .confirmationDialog("Sign out of OffHours?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) {
@@ -175,6 +191,9 @@ struct SettingsView: View {
         interests = Set(profile.interests.compactMap(Interest.init(rawValue:)))
         nudgeTime = Calendar.current.date(bySettingHour: profile.nudgeHour, minute: profile.nudgeMinute, second: 0, of: .now) ?? .now
         radiusKm = profile.radiusKm
+        if let userID = model.userID {
+            preferences = EveningPreferencesStore.load(for: userID)
+        }
     }
 
     private func save() async {

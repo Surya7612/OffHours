@@ -24,6 +24,8 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.healthcare-fitness</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>OffHours adds the evening you choose to your calendar. It does not read your other events.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>OffHours uses your location to suggest real places near you for tonight's activity and to show gatherings in your neighborhood.</string>
 	<key>NSSupportsLiveActivities</key>

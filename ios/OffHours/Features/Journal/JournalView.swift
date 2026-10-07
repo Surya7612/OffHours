@@ -1,8 +1,10 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct JournalView: View {
     @Environment(AppModel.self) private var model
     @State private var errorMessage: String?
+    @State private var recapImage: WeekRecapImage?
 
     private var groupedLogs: [(day: Date, logs: [ActivityLog])] {
         let calendar = Calendar.current
@@ -45,6 +47,19 @@ struct JournalView: View {
                 }
             }
             .navigationTitle("Journal")
+            .toolbar {
+                if let recapImage {
+                    ToolbarItem(placement: .primaryAction) {
+                        ShareLink(
+                            item: recapImage,
+                            preview: SharePreview("This week offline", image: Image(uiImage: recapImage.image))
+                        ) {
+                            Label("Share week", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                }
+            }
+            .task(id: model.logs) { recapImage = WeekRecapImage.render(logs: model.logs, streak: model.stats.currentStreak) }
             .refreshable { await model.refreshJournal() }
             .alert("Couldn't delete", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -62,6 +77,60 @@ struct JournalView: View {
         if calendar.isDateInToday(day) { return "Today" }
         if calendar.isDateInYesterday(day) { return "Yesterday" }
         return day.formatted(.dateTime.weekday(.wide).month().day())
+    }
+}
+
+struct WeekRecapImage: Transferable, Sendable {
+    let png: Data
+
+    var image: UIImage { UIImage(data: png) ?? UIImage() }
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { $0.png }
+    }
+
+    @MainActor
+    static func render(logs: [ActivityLog], streak: Int) -> WeekRecapImage? {
+        let week = WeekSummary(logs: logs)
+        guard week.moments > 0 else { return nil }
+        let renderer = ImageRenderer(content: WeekRecapCard(week: week, streak: streak))
+        renderer.scale = 3
+        guard let png = renderer.uiImage?.pngData() else { return nil }
+        return WeekRecapImage(png: png)
+    }
+}
+
+private struct WeekRecapCard: View {
+    let week: WeekSummary
+    let streak: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("OFFHOURS")
+                .font(.caption.weight(.bold))
+                .tracking(2)
+                .opacity(0.8)
+            Text(headline)
+                .font(.system(size: 34, weight: .semibold, design: .serif))
+            Text(week.recapText)
+                .font(.title3)
+                .fixedSize(horizontal: false, vertical: true)
+            if streak > 0 {
+                Label("\(streak) evening streak", systemImage: "flame.fill")
+                    .font(.headline)
+            }
+            Text("Phone down. Evening kept.")
+                .font(.footnote.weight(.medium))
+                .opacity(0.85)
+        }
+        .foregroundStyle(.white)
+        .padding(28)
+        .frame(width: 360, alignment: .leading)
+        .background(Theme.duskGradient)
+    }
+
+    private var headline: String {
+        week.days == 1 ? "1 evening offline" : "\(week.days) evenings offline"
     }
 }
 

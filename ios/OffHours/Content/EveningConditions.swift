@@ -62,6 +62,7 @@ extension NudgePicker {
         library: [Activity] = ActivityLibrary.all,
         intent: TonightIntent? = nil,
         feedback: ActivityFeedback = ActivityFeedback(),
+        preferences: EveningPreferences = EveningPreferences(),
         history: [ActivityLog] = []
     ) -> (ranked: [Activity], reason: String?) {
         let base = ranked(
@@ -70,6 +71,7 @@ extension NudgePicker {
             library: library,
             intent: intent,
             feedback: feedback,
+            preferences: preferences,
             history: history
         )
         guard let conditions else { return (base, nil) }

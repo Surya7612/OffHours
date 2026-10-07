@@ -20,6 +20,11 @@ struct TonightView: View {
     @State private var showCheckIn = false
     @State private var showSkipReasons = false
     @State private var likedTonight: Set<String> = []
+    @State private var preferences = EveningPreferences()
+    @State private var calendarSavedID: String?
+    @State private var isSavingCalendar = false
+    @State private var calendarMessage: String?
+    @State private var calendarNeedsSettings = false
     @AppStorage("skippedGatheringLogs") private var skippedLogs = ""
     @Environment(\.colorScheme) private var colorScheme
 
@@ -33,6 +38,7 @@ struct TonightView: View {
             conditions: conditions,
             intent: intent,
             feedback: feedback,
+            preferences: preferences,
             history: model.logs
         )
     }
@@ -92,6 +98,9 @@ struct TonightView: View {
                             onStart: { session = ActivitySession(activity: activity, place: place) },
                             liked: likedTonight.contains(activity.id),
                             onMoreLikeThis: { like(activity) },
+                            calendarSaved: calendarSavedID == activity.id,
+                            isSavingCalendar: isSavingCalendar,
+                            onAddToCalendar: { Task { await addToCalendar(activity) } },
                             onSomethingElse: { showSkipReasons = true }
                         )
                         .id(activity.id)
@@ -132,8 +141,19 @@ struct TonightView: View {
             .fullScreenCover(item: $session) { session in
                 ActivitySessionView(session: session)
             }
-            .sheet(isPresented: $showSettings) {
+            .sheet(isPresented: $showSettings, onDismiss: loadPersonalization) {
                 SettingsView()
+            }
+            .alert("Calendar", isPresented: Binding(
+                get: { calendarMessage != nil },
+                set: { if !$0 { calendarMessage = nil } }
+            )) {
+                if calendarNeedsSettings {
+                    Button("Open Settings", action: openSettings)
+                }
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(calendarMessage ?? "")
             }
             .confirmationDialog("What didn't fit?", isPresented: $showSkipReasons, titleVisibility: .visible) {
                 if let activity {
@@ -169,6 +189,7 @@ struct TonightView: View {
             choiceIndex = 0
         }
         feedback = TonightPersonalizationStore.feedback(for: userID)
+        preferences = EveningPreferencesStore.load(for: userID)
     }
 
     private func save(_ chosen: TonightIntent) {
@@ -189,6 +210,31 @@ struct TonightView: View {
         withAnimation(.snappy) {
             skippedTonight.insert(activity.id)
             choiceIndex = 0
+        }
+    }
+
+    private func addToCalendar(_ activity: Activity) async {
+        guard let profile, !isSavingCalendar else { return }
+        isSavingCalendar = true
+        defer { isSavingCalendar = false }
+        let start = CalendarPlanner.plannedStart(hour: profile.nudgeHour, minute: profile.nudgeMinute)
+        let placeName = place?.name
+        let outcome = await CalendarPlanner.save(
+            title: activity.title,
+            start: start,
+            minutes: activity.minutes,
+            location: placeName,
+            notes: [activity.summary, "Planned with OffHours"].joined(separator: "\n")
+        )
+        switch outcome {
+        case .saved:
+            calendarSavedID = activity.id
+        case .denied:
+            calendarNeedsSettings = true
+            calendarMessage = "OffHours can add this evening once Calendar access is on."
+        case .failed:
+            calendarNeedsSettings = false
+            calendarMessage = "Couldn't add that to your calendar."
         }
     }
 
@@ -494,6 +540,9 @@ private struct ActivityHeroCard: View {
     let onStart: () -> Void
     let liked: Bool
     let onMoreLikeThis: () -> Void
+    let calendarSaved: Bool
+    let isSavingCalendar: Bool
+    let onAddToCalendar: () -> Void
     let onSomethingElse: () -> Void
 
     var body: some View {
@@ -556,7 +605,10 @@ private struct ActivityHeroCard: View {
                 }
                 .font(.subheadline.weight(.medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                Button(calendarSaved ? "On your calendar" : "Add to Calendar", systemImage: "calendar.badge.plus", action: onAddToCalendar)
+                    .disabled(calendarSaved || isSavingCalendar)
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
             }
         }
     }

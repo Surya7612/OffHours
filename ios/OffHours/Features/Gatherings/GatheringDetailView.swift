@@ -17,6 +17,10 @@ struct GatheringDetailView: View {
     @State private var spotDraft = ""
     @State private var otherDates: [Gathering] = []
     @State private var didReport = false
+    @State private var calendarSaved = false
+    @State private var isSavingCalendar = false
+    @State private var calendarMessage: String?
+    @State private var calendarNeedsSettings = false
 
     private var isHost: Bool { gathering.hostID == app.userID }
 
@@ -65,6 +69,12 @@ struct GatheringDetailView: View {
                         Text(gathering.startsAt, format: .dateTime.weekday(.wide).month().day())
                         Text("\(gathering.startsAt.formatted(date: .omitted, time: .shortened)) – \(gathering.endsAt.formatted(date: .omitted, time: .shortened))")
                             .foregroundStyle(.secondary)
+                        Button(calendarSaved ? "On your calendar" : "Add to Calendar", systemImage: "calendar.badge.plus") {
+                            Task { await addToCalendar() }
+                        }
+                        .disabled(calendarSaved || isSavingCalendar)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Theme.ember)
                     }
                     Button {
                         Place(name: gathering.placeName, address: gathering.placeAddress, coordinate: gathering.coordinate).openInMaps()
@@ -138,6 +148,21 @@ struct GatheringDetailView: View {
             if isHost {
                 attendees = (try? await backend.attendees(gatheringID: gathering.id)) ?? []
             }
+        }
+        .alert("Calendar", isPresented: Binding(
+            get: { calendarMessage != nil },
+            set: { if !$0 { calendarMessage = nil } }
+        )) {
+            if calendarNeedsSettings {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(calendarMessage ?? "")
         }
         .alert("Meeting spot", isPresented: $editingSpot) {
             TextField("By the fountain, red umbrella", text: $spotDraft)
@@ -249,6 +274,32 @@ struct GatheringDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .card()
+    }
+
+    private func addToCalendar() async {
+        guard !isSavingCalendar else { return }
+        isSavingCalendar = true
+        defer { isSavingCalendar = false }
+        var notes = [gathering.details]
+        if let spot = gathering.meetingSpot { notes.append("Look for: \(spot)") }
+        notes.append("From OffHours")
+        let outcome = await CalendarPlanner.save(
+            title: gathering.title,
+            start: gathering.startsAt,
+            minutes: gathering.durationMinutes,
+            location: gathering.placeName,
+            notes: notes.filter { !$0.isEmpty }.joined(separator: "\n")
+        )
+        switch outcome {
+        case .saved:
+            calendarSaved = true
+        case .denied:
+            calendarNeedsSettings = true
+            calendarMessage = "OffHours can add this gathering once Calendar access is on."
+        case .failed:
+            calendarNeedsSettings = false
+            calendarMessage = "Couldn't add that to your calendar."
+        }
     }
 
     private func saveSpot() {

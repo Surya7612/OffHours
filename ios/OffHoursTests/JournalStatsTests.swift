@@ -200,6 +200,42 @@ struct NudgePickerTests {
         #expect(adjusted.first == learned)
     }
 
+    @Test func indoorPreferencePushesOutdoorPlansDown() {
+        let indoor = activity("indoor")
+        let outdoor = activity("outdoor", kind: .nature, place: .park)
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let ranked = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [outdoor, indoor],
+            preferences: EveningPreferences(preferIndoor: true)
+        )
+        #expect(ranked.first == indoor)
+    }
+
+    @Test func freePreferencePushesPaidPlansDown() {
+        let free = activity("free")
+        let paid = activity("paid", place: .cafe)
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let ranked = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [paid, free],
+            preferences: EveningPreferences(keepFree: true)
+        )
+        #expect(ranked.first == free)
+    }
+
+    @Test func plannedCalendarStartUsesTheNudgeWhenItIsStillAhead() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let morning = calendar.date(from: DateComponents(year: 2026, month: 10, day: 6, hour: 10))!
+        let later = CalendarPlanner.plannedStart(hour: 18, minute: 0, now: morning, calendar: calendar)
+        #expect(calendar.component(.hour, from: later) == 18)
+        let earlier = CalendarPlanner.plannedStart(hour: 8, minute: 0, now: morning, calendar: calendar)
+        #expect(earlier == morning)
+    }
+
     @Test func checkInExpiresAtMidnight() throws {
         let userID = UUID()
         let day = Date(timeIntervalSince1970: 1_790_000_000)

@@ -1,6 +1,6 @@
 # OffHours Privacy Policy
 
-_Last updated: October 4, 2026_
+_Last updated: October 6, 2026_
 
 OffHours helps you spend the hour after work offline. We collect as little as we can to make
 that work, we never sell your data, and we don't use it for advertising or tracking.
@@ -32,6 +32,10 @@ that work, we never sell your data, and we don't use it for advertising or track
   your device.
 - **What the widget and Lock Screen show.** Tonight's suggestion, your streak and the session
   timer are kept on your device for the widget and Live Activity, and are cleared when you sign out.
+- **Your calendar.** If you add an evening or a gathering, OffHours writes that one event. It does
+  not read your other events, and the event stays in Apple Calendar.
+- **Evening preferences** such as quieter, indoor, or free. They stay on your device and are
+  cleared when you sign out.
 - Contacts, photos, health data, or advertising identifiers.
 
 ## Who can see what

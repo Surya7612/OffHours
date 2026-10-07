@@ -164,6 +164,35 @@ enum TonightPersonalizationStore {
     static func clear(userID: UUID) {
         UserDefaults.standard.removeObject(forKey: intentKey(userID))
         UserDefaults.standard.removeObject(forKey: feedbackKey(userID))
+        EveningPreferencesStore.clear(userID: userID)
+    }
+}
+
+/// Lasting limits on what Tonight suggests. Unlike the check-in, these do not expire at midnight.
+struct EveningPreferences: Codable, Equatable, Sendable {
+    var quieter = false
+    var stayClose = false
+    var preferIndoor = false
+    var keepFree = false
+}
+
+enum EveningPreferencesStore {
+    private static func key(_ userID: UUID) -> String { "evening-preferences-\(userID.uuidString)" }
+
+    static func load(for userID: UUID) -> EveningPreferences {
+        guard let data = UserDefaults.standard.data(forKey: key(userID)),
+              let preferences = try? JSONDecoder().decode(EveningPreferences.self, from: data)
+        else { return EveningPreferences() }
+        return preferences
+    }
+
+    static func save(_ preferences: EveningPreferences, for userID: UUID) {
+        guard let data = try? JSONEncoder().encode(preferences) else { return }
+        UserDefaults.standard.set(data, forKey: key(userID))
+    }
+
+    static func clear(userID: UUID) {
+        UserDefaults.standard.removeObject(forKey: key(userID))
     }
 }
 
