@@ -8,6 +8,9 @@ struct GatheringsView: View {
     @State private var isEnablingAlerts = false
     @State private var alertError: String?
     @State private var unavailable = false
+    @State private var showInviteCode = false
+    @State private var inviteCode = ""
+    @State private var inviteError: String?
     @AppStorage("dismissedAlertsPrompt") private var dismissedAlertsPrompt = false
 
     var body: some View {
@@ -83,6 +86,9 @@ struct GatheringsView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Host", systemImage: "plus") { showCreate = true }
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Invite code", systemImage: "ticket") { showInviteCode = true }
+                }
             }
             .refreshable { await model.load(app: app) }
             .task(id: app.activations) { await model.load(app: app) }
@@ -106,6 +112,14 @@ struct GatheringsView: View {
                 } else {
                     unavailable = true
                 }
+            }
+            .alert("Invite code", isPresented: $showInviteCode) {
+                TextField("6-character code", text: $inviteCode)
+                    .textInputAutocapitalization(.characters)
+                Button("Find") { Task { await openInvite() } }
+                Button("Cancel", role: .cancel) { inviteCode = "" }
+            } message: {
+                Text(inviteError ?? "Enter the code from the host.")
             }
             .alert("This gathering isn't available", isPresented: $unavailable) {
                 Button("OK", role: .cancel) {}
@@ -162,6 +176,20 @@ struct GatheringsView: View {
             GatheringRow(gathering: gathering, isHost: gathering.hostID == app.userID)
         }
         .foregroundStyle(.primary)
+    }
+
+    private func openInvite() async {
+        let code = inviteCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        inviteCode = ""
+        guard let backend = app.backend, code.count == 6,
+              let gathering = try? await backend.gathering(inviteCode: code)
+        else {
+            inviteError = "That code doesn't match an upcoming gathering."
+            showInviteCode = true
+            return
+        }
+        inviteError = nil
+        selected = gathering
     }
 
     private func openSettings() {

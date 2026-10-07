@@ -34,7 +34,9 @@ enum NudgePicker {
                 // an activity forever. This preserves variety instead of creating a filter bubble.
                 score += Double(min(completedByID[activity.id] ?? 0, 3)) * 5
                 score += Double(min(completedByKind[activity.kind.rawValue] ?? 0, 6))
+                score += Double(min(feedback.likeCount(for: activity.kind.rawValue), 4)) * 4
                 score -= Double(feedback.skipCount(for: activity.id)) * 5
+                score -= feedbackPenalty(activity, feedback: feedback)
                 score += Double.random(in: 0..<14, using: &rng)
                 return (activity, score)
             }
@@ -73,6 +75,16 @@ enum NudgePicker {
             break
         }
         return score
+    }
+
+    /// Reasons describe a kind of plan, so they affect similar activities rather than only the one skipped.
+    private static func feedbackPenalty(_ activity: Activity, feedback: ActivityFeedback) -> Double {
+        var penalty = 0.0
+        if activity.place != nil { penalty += Double(feedback.reasonCount(.tooFar)) * 4 }
+        if activity.mayCostMoney { penalty += Double(feedback.reasonCount(.costsMoney)) * 6 }
+        if activity.energy == .active { penalty += Double(feedback.reasonCount(.tooMuchEnergy)) * 5 }
+        if activity.isOutdoor { penalty += Double(feedback.reasonCount(.weather)) * 5 }
+        return penalty
     }
 
     private static func seed(for day: Date, userID: UUID, calendar: Calendar) -> UInt64 {

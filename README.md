@@ -55,8 +55,8 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
 - **Sign in with Apple** through Supabase Auth. No passwords.
 - **Tonight**: a daily activity picked from a curated library based on your interests and nudge
   time. A four-part check-in tunes it to the time, energy, budget and company that fit right now.
-  Skips and journal completions teach the picker over time; check-ins and skip history stay on
-  the device. Activities that need a place (park, café, library, waterfront, museum) are anchored
+  Skips and journal completions teach the picker over time. A skip can say why, and "More like
+  this" favors that kind of plan. Check-ins and this preference history stay on the device. Activities that need a place (park, café, library, waterfront, museum) are anchored
   to the nearest real one using Apple Maps on device, with walking directions.
 - **Timer and journal**: start the activity, lock your phone, get a notification when time is
   up, write one line about it. Streaks and totals come from your journal in Supabase.
@@ -71,6 +71,8 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
 - **Weather and sunset**: on wet, very cold or very hot evenings (Apple WeatherKit), and after
   dark, outdoor picks move behind indoor ones. Sunset is calculated on device and outdoor picks
   say when to head out. Without weather data the picks are unchanged.
+- **Invite-only gatherings**: a host can hide a gathering from people nearby and share a
+  6-character code. Each date of a weekly gathering has its own code.
 - **Weekly gatherings**: hosts can repeat a gathering for 2 to 4 weeks. Each date has its own
   RSVPs; nearby people get one alert for the series, and hosts can cancel one date or all.
 - **Gatherings in the journal**: after a gathering you joined, Tonight asks "How was it?" and

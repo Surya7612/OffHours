@@ -11,6 +11,8 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
     var meetingNote: String?
     /// Shared by the dates of a weekly gathering.
     var seriesID: UUID?
+    var isPrivate: Bool?
+    var inviteCode: String?
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -30,6 +32,8 @@ struct Gathering: Decodable, Identifiable, Hashable, Sendable {
         case details
         case meetingNote = "meeting_note"
         case seriesID = "series_id"
+        case isPrivate = "is_private"
+        case inviteCode = "invite_code"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"
@@ -91,6 +95,8 @@ struct NewGathering: Encodable, Sendable {
     var details: String
     var meetingNote: String
     var seriesID: UUID?
+    var isPrivate: Bool = false
+    var inviteCode: String?
     var startsAt: Date
     var durationMinutes: Int
     var placeName: String
@@ -104,6 +110,8 @@ struct NewGathering: Encodable, Sendable {
         case details
         case meetingNote = "meeting_note"
         case seriesID = "series_id"
+        case isPrivate = "is_private"
+        case inviteCode = "invite_code"
         case startsAt = "starts_at"
         case durationMinutes = "duration_minutes"
         case placeName = "place_name"

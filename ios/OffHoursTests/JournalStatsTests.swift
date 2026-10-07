@@ -131,7 +131,7 @@ struct NudgePickerTests {
         let date = Date(timeIntervalSince1970: 1_790_000_000)
         let initial = try #require(NudgePicker.ranked(for: date, profile: profile, library: [one, two]).first)
         var feedback = ActivityFeedback()
-        for _ in 0..<3 { feedback.skipped(initial.id) }
+        for _ in 0..<3 { feedback.skipped(initial.id, reason: .notForMe) }
         let adjusted = NudgePicker.ranked(
             for: date,
             profile: profile,
@@ -139,6 +139,38 @@ struct NudgePickerTests {
             feedback: feedback
         )
         #expect(adjusted.first?.id != initial.id)
+    }
+
+    @Test func costSkipsPushPaidActivitiesDown() {
+        let free = activity("free")
+        let paid = activity("paid", place: .cafe)
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        var feedback = ActivityFeedback()
+        for _ in 0..<3 { feedback.skipped(paid.id, reason: .costsMoney) }
+        let ranked = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [paid, free],
+            feedback: feedback
+        )
+        #expect(ranked.first == free)
+    }
+
+    @Test func likingAKindMovesSimilarActivitiesUp() throws {
+        let mindful = activity("mindful", kind: .mindful)
+        let movement = activity("movement", kind: .movement)
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let initial = try #require(NudgePicker.ranked(for: date, profile: profile, library: [mindful, movement]).first)
+        let preferred = initial == mindful ? movement : mindful
+        var feedback = ActivityFeedback()
+        for _ in 0..<4 { feedback.liked(kind: preferred.kind.rawValue) }
+        let ranked = NudgePicker.ranked(
+            for: date,
+            profile: profile,
+            library: [mindful, movement],
+            feedback: feedback
+        )
+        #expect(ranked.first == preferred)
     }
 
     @Test func repeatedCompletionsTeachThePicker() throws {

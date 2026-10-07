@@ -194,6 +194,14 @@ struct Backend: Sendable {
             .sorted { $0.startsAt < $1.startsAt }
     }
 
+    func gathering(inviteCode: String) async throws -> Gathering? {
+        let rows: [Gathering] = try await client
+            .rpc("gathering_by_invite", params: ["p_code": inviteCode])
+            .execute()
+            .value
+        return rows.first
+    }
+
     /// The other upcoming dates of a weekly gathering.
     func seriesDates(seriesID: UUID) async throws -> [Gathering] {
         try await client.from("gatherings")

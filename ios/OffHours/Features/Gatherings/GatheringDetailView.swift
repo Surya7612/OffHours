@@ -25,6 +25,9 @@ struct GatheringDetailView: View {
         let time = gathering.startsAt.formatted(date: .omitted, time: .shortened)
         var lines = ["Join me for \(gathering.title): \(day) at \(time), \(gathering.placeName)."]
         if let spot = gathering.meetingSpot { lines.append("Look for: \(spot)") }
+        if gathering.isPrivate == true, let code = gathering.inviteCode {
+            lines.append("This is invite only. In OffHours, choose Invite code and enter \(code).")
+        }
         lines.append("RSVP on OffHours: \(AppConfig.downloadURL.absoluteString)")
         return lines.joined(separator: "\n")
     }
@@ -51,6 +54,9 @@ struct GatheringDetailView: View {
                         .foregroundStyle(.secondary)
                     if gathering.seriesID != nil {
                         Tag(text: "Repeats weekly", color: Theme.ember)
+                    }
+                    if gathering.isPrivate == true {
+                        Tag(text: gathering.inviteCode.map { "Invite code \($0)" } ?? "Invite only", color: Theme.ember)
                     }
                 }
 

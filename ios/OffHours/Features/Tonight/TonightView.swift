@@ -18,6 +18,8 @@ struct TonightView: View {
     @State private var feedback = ActivityFeedback()
     @State private var skippedTonight: Set<String> = []
     @State private var showCheckIn = false
+    @State private var showSkipReasons = false
+    @State private var likedTonight: Set<String> = []
     @AppStorage("skippedGatheringLogs") private var skippedLogs = ""
     @Environment(\.colorScheme) private var colorScheme
 
@@ -88,7 +90,9 @@ struct TonightView: View {
                             onNextPlace: { placeIndex = (placeIndex + 1) % max(places.count, 1) },
                             onEnableLocation: { Task { await findPlaces(for: activity) } },
                             onStart: { session = ActivitySession(activity: activity, place: place) },
-                            onSomethingElse: { skip(activity) }
+                            liked: likedTonight.contains(activity.id),
+                            onMoreLikeThis: { like(activity) },
+                            onSomethingElse: { showSkipReasons = true }
                         )
                         .id(activity.id)
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
@@ -131,6 +135,14 @@ struct TonightView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .confirmationDialog("What didn't fit?", isPresented: $showSkipReasons, titleVisibility: .visible) {
+                if let activity {
+                    ForEach(SkipReason.allCases) { reason in
+                        Button(reason.label) { skip(activity, reason: reason) }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .sheet(isPresented: $showCheckIn) {
                 TonightCheckInSheet(initial: intent ?? TonightIntent()) { chosen in
                     save(chosen)
@@ -169,15 +181,22 @@ struct TonightView: View {
         }
     }
 
-    private func skip(_ activity: Activity) {
+    private func skip(_ activity: Activity, reason: SkipReason) {
         if let userID = model.userID {
-            TonightPersonalizationStore.recordSkip(activityID: activity.id, for: userID)
+            TonightPersonalizationStore.recordSkip(activityID: activity.id, reason: reason, for: userID)
             feedback = TonightPersonalizationStore.feedback(for: userID)
         }
         withAnimation(.snappy) {
             skippedTonight.insert(activity.id)
             choiceIndex = 0
         }
+    }
+
+    private func like(_ activity: Activity) {
+        guard let userID = model.userID else { return }
+        TonightPersonalizationStore.recordLike(kind: activity.kind.rawValue, for: userID)
+        feedback = TonightPersonalizationStore.feedback(for: userID)
+        withAnimation(.snappy) { likedTonight.insert(activity.id) }
     }
 
     private var header: some View {
@@ -473,6 +492,8 @@ private struct ActivityHeroCard: View {
     let onNextPlace: () -> Void
     let onEnableLocation: () -> Void
     let onStart: () -> Void
+    let liked: Bool
+    let onMoreLikeThis: () -> Void
     let onSomethingElse: () -> Void
 
     var body: some View {
@@ -528,10 +549,14 @@ private struct ActivityHeroCard: View {
             VStack(spacing: 10) {
                 Button("Start", systemImage: "play.fill", action: onStart)
                     .buttonStyle(.primary)
-                Button("Something else", action: onSomethingElse)
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                HStack(spacing: 16) {
+                    Button(liked ? "Saved for next time" : "More like this", action: onMoreLikeThis)
+                        .disabled(liked)
+                    Button("Something else", action: onSomethingElse)
+                }
+                .font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
             }
         }
     }

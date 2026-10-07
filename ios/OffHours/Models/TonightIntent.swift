@@ -67,14 +67,52 @@ struct TonightIntent: Codable, Equatable, Sendable {
     }
 }
 
+enum SkipReason: String, CaseIterable, Codable, Identifiable, Sendable {
+    case tooFar
+    case costsMoney
+    case tooMuchEnergy
+    case weather
+    case notForMe
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .tooFar: "Too far"
+        case .costsMoney: "Costs money"
+        case .tooMuchEnergy: "Too much energy"
+        case .weather: "Wrong weather"
+        case .notForMe: "Not for me"
+        }
+    }
+}
+
 struct ActivityFeedback: Codable, Equatable, Sendable {
     private(set) var skips: [String: Int] = [:]
+    private(set) var likes: [String: Int] = [:]
+    private(set) var reasons: [String: Int] = [:]
 
-    mutating func skipped(_ activityID: String) {
+    mutating func skipped(_ activityID: String, reason: SkipReason) {
         skips[activityID] = min((skips[activityID] ?? 0) + 1, 10)
+        reasons[reason.rawValue] = min((reasons[reason.rawValue] ?? 0) + 1, 12)
+    }
+
+    mutating func liked(kind: String) {
+        likes[kind] = min((likes[kind] ?? 0) + 1, 12)
     }
 
     func skipCount(for activityID: String) -> Int { skips[activityID] ?? 0 }
+    func likeCount(for kind: String) -> Int { likes[kind] ?? 0 }
+    func reasonCount(_ reason: SkipReason) -> Int { reasons[reason.rawValue] ?? 0 }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        skips = try container.decodeIfPresent([String: Int].self, forKey: .skips) ?? [:]
+        likes = try container.decodeIfPresent([String: Int].self, forKey: .likes) ?? [:]
+        reasons = try container.decodeIfPresent([String: Int].self, forKey: .reasons) ?? [:]
+    }
 }
 
 /// Local-only check-in and preference memory. Keys are scoped to the account on this device.
@@ -108,9 +146,17 @@ enum TonightPersonalizationStore {
         return feedback
     }
 
-    static func recordSkip(activityID: String, for userID: UUID) {
+    static func recordSkip(activityID: String, reason: SkipReason, for userID: UUID) {
+        update(userID) { $0.skipped(activityID, reason: reason) }
+    }
+
+    static func recordLike(kind: String, for userID: UUID) {
+        update(userID) { $0.liked(kind: kind) }
+    }
+
+    private static func update(_ userID: UUID, _ change: (inout ActivityFeedback) -> Void) {
         var feedback = feedback(for: userID)
-        feedback.skipped(activityID)
+        change(&feedback)
         guard let data = try? JSONEncoder().encode(feedback) else { return }
         UserDefaults.standard.set(data, forKey: feedbackKey(userID))
     }

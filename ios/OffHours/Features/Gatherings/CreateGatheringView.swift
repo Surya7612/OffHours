@@ -14,6 +14,8 @@ struct CreateGatheringView: View {
     @State private var durationMinutes = 60
     @State private var capacity = 6
     @State private var repeatsWeekly = false
+    @State private var inviteOnly = false
+    @State private var inviteCode = CreateGatheringView.makeInviteCode()
     @State private var weeks = 4
     @State private var place: Place?
     @State private var showPlaceSearch = false
@@ -70,6 +72,14 @@ struct CreateGatheringView: View {
                     }
 
                     Stepper("Up to \(capacity) people", value: $capacity, in: 2...20)
+                }
+
+                Section {
+                    Toggle("Invite only", isOn: $inviteOnly)
+                } footer: {
+                    Text(inviteOnly
+                         ? "People nearby won't see it. Share code \(inviteCode) with the people you want."
+                         : "Anyone nearby can find a public gathering.")
                 }
 
                 Section {
@@ -167,12 +177,14 @@ struct CreateGatheringView: View {
         do {
             let dates = dates
             let seriesID = dates.count > 1 ? UUID() : nil
-            let created = try await backend.create(dates.map { date in
+            let created = try await backend.create(dates.enumerated().map { index, date in
                 NewGathering(
                     title: trimmedTitle,
                     details: trimmedDetails,
                     meetingNote: trimmedNote,
                     seriesID: seriesID,
+                    isPrivate: inviteOnly,
+                    inviteCode: inviteOnly ? (index == 0 ? inviteCode : Self.makeInviteCode()) : nil,
                     startsAt: date,
                     durationMinutes: durationMinutes,
                     placeName: place.name.clipped(to: 120),
@@ -187,6 +199,11 @@ struct CreateGatheringView: View {
         } catch {
             errorMessage = error.userMessage
         }
+    }
+
+    private static func makeInviteCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        return String((0..<6).map { _ in alphabet.randomElement()! })
     }
 
     private static func defaultStart() -> Date {
