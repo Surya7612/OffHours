@@ -221,6 +221,66 @@ struct Backend: Sendable {
             .execute()
     }
 
+    func joinWaitlist(gatheringID: UUID) async throws {
+        try await client.from("gathering_waitlist")
+            .upsert(["gathering_id": gatheringID], onConflict: "gathering_id,user_id", ignoreDuplicates: true)
+            .execute()
+    }
+
+    func leaveWaitlist(gatheringID: UUID, userID: UUID) async throws {
+        try await client.from("gathering_waitlist")
+            .delete()
+            .eq("gathering_id", value: gatheringID)
+            .eq("user_id", value: userID)
+            .execute()
+    }
+
+    func confirm(gatheringID: UUID) async throws {
+        struct Stamp: Encodable { let confirmed_at: Date }
+        try await client.from("gathering_rsvps")
+            .update(Stamp(confirmed_at: .now))
+            .eq("gathering_id", value: gatheringID)
+            .execute()
+    }
+
+    func arrive(gatheringID: UUID) async throws {
+        struct Stamp: Encodable { let arrived_at: Date }
+        try await client.from("gathering_rsvps")
+            .update(Stamp(arrived_at: .now))
+            .eq("gathering_id", value: gatheringID)
+            .execute()
+    }
+
+    func announcements(gatheringID: UUID) async throws -> [GatheringAnnouncement] {
+        try await client.from("gathering_announcements")
+            .select()
+            .eq("gathering_id", value: gatheringID)
+            .order("created_at")
+            .execute()
+            .value
+    }
+
+    func postAnnouncement(gatheringID: UUID, body: String) async throws -> GatheringAnnouncement {
+        struct Note: Encodable {
+            let gathering_id: UUID
+            let body: String
+        }
+        let rows: [GatheringAnnouncement] = try await client.from("gathering_announcements")
+            .insert(Note(gathering_id: gatheringID, body: body))
+            .select()
+            .execute()
+            .value
+        guard let note = rows.first else { throw URLError(.badServerResponse) }
+        return note
+    }
+
+    func hostedCount(hostID: UUID) async throws -> Int {
+        try await client
+            .rpc("host_completed_count", params: ["p_host_id": hostID])
+            .execute()
+            .value
+    }
+
     func leave(gatheringID: UUID, userID: UUID) async throws {
         try await client.from("gathering_rsvps")
             .delete()

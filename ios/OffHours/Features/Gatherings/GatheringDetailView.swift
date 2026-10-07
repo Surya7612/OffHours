@@ -21,6 +21,10 @@ struct GatheringDetailView: View {
     @State private var isSavingCalendar = false
     @State private var calendarMessage: String?
     @State private var calendarNeedsSettings = false
+    @State private var announcements: [GatheringAnnouncement] = []
+    @State private var announcementDraft = ""
+    @State private var hostedCount = 0
+    @State private var ageMessage: String?
 
     private var isHost: Bool { gathering.hostID == app.userID }
 
@@ -56,6 +60,11 @@ struct GatheringDetailView: View {
                         .font(.system(.title, design: .serif, weight: .semibold))
                     Text("Hosted by \(isHost ? "you" : gathering.hostName)")
                         .foregroundStyle(.secondary)
+                    if hostedCount > 0 {
+                        Text(hostedCount == 1 ? "Hosted 1 gathering" : "Hosted \(hostedCount) gatherings")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     if gathering.seriesID != nil {
                         Tag(text: "Repeats weekly", color: Theme.ember)
                     }
@@ -69,6 +78,11 @@ struct GatheringDetailView: View {
                         Text(gathering.startsAt, format: .dateTime.weekday(.wide).month().day())
                         Text("\(gathering.startsAt.formatted(date: .omitted, time: .shortened)) – \(gathering.endsAt.formatted(date: .omitted, time: .shortened))")
                             .foregroundStyle(.secondary)
+                        if let closes = gathering.rsvpClosesAt {
+                            Text(gathering.rsvpClosed ? "RSVPs are closed" : "RSVPs close \(closes.formatted(.dateTime.weekday(.abbreviated).hour().minute()))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                         Button(calendarSaved ? "On your calendar" : "Add to Calendar", systemImage: "calendar.badge.plus") {
                             Task { await addToCalendar() }
                         }
@@ -123,6 +137,10 @@ struct GatheringDetailView: View {
                         .card()
                 }
 
+                if isHost || !announcements.isEmpty {
+                    updates
+                }
+
                 Label("Meet in public, tell someone where you're going, and leave if anything feels off.", systemImage: "shield.lefthalf.filled")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -148,6 +166,8 @@ struct GatheringDetailView: View {
             if isHost {
                 attendees = (try? await backend.attendees(gatheringID: gathering.id)) ?? []
             }
+            announcements = (try? await backend.announcements(gatheringID: gathering.id)) ?? []
+            hostedCount = (try? await backend.hostedCount(hostID: gathering.hostID)) ?? 0
         }
         .alert("Calendar", isPresented: Binding(
             get: { calendarMessage != nil },
@@ -163,6 +183,14 @@ struct GatheringDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(calendarMessage ?? "")
+        }
+        .alert("Gatherings", isPresented: Binding(
+            get: { ageMessage != nil },
+            set: { if !$0 { ageMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(ageMessage ?? "")
         }
         .alert("Meeting spot", isPresented: $editingSpot) {
             TextField("By the fountain, red umbrella", text: $spotDraft)
@@ -265,6 +293,11 @@ struct GatheringDetailView: View {
                     HStack {
                         Text(attendee.displayName)
                         Spacer()
+                        if let status = attendee.statusLabel {
+                            Text(status)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Theme.ember)
+                        }
                         Text(attendee.joinedAt, format: .relative(presentation: .named))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -314,6 +347,37 @@ struct GatheringDetailView: View {
         }
     }
 
+    private var updates: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("From the host")
+                .font(.headline)
+            if announcements.isEmpty {
+                Text("No updates yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(announcements) { note in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(note.body)
+                        Text(note.createdAt, format: .dateTime.weekday(.abbreviated).hour().minute())
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if isHost && !gathering.hasEnded {
+                TextField("Running a few minutes late", text: $announcementDraft, axis: .vertical)
+                    .lineLimit(2...4)
+                Button("Post update") { postUpdate() }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.ember)
+                    .disabled(announcementDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+    }
+
     @ViewBuilder
     private var actionButton: some View {
         if isHost {
@@ -322,30 +386,107 @@ struct GatheringDetailView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
         } else if gathering.going {
-            Button("I can't make it") {
-                perform {
-                    try await model.leave(gathering, app: app)
-                    gathering.isGoing = false
-                    gathering.attendeeCount = max(0, gathering.attendeeCount - 1)
+            VStack(spacing: 10) {
+                if gathering.canArrive() {
+                    Button("I'm here") {
+                        perform {
+                            try await app.backend?.arrive(gatheringID: gathering.id)
+                            gathering.arrivedAt = .now
+                        }
+                    }
+                    .buttonStyle(.primary)
+                    .disabled(isWorking)
+                } else if gathering.canConfirm() {
+                    Button("I'll be there") {
+                        perform {
+                            try await app.backend?.confirm(gatheringID: gathering.id)
+                            gathering.confirmedAt = .now
+                        }
+                    }
+                    .buttonStyle(.primary)
+                    .disabled(isWorking)
                 }
+                Button("I can't make it") {
+                    perform {
+                        try await model.leave(gathering, app: app)
+                        gathering.isGoing = false
+                        gathering.attendeeCount = max(0, gathering.attendeeCount - 1)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isWorking)
             }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(isWorking)
+        } else if gathering.rsvpClosed {
+            Button("RSVPs are closed") {}
+                .buttonStyle(.primary)
+                .disabled(true)
+        } else if gathering.isFull {
+            if gathering.waiting {
+                Button("Leave the waitlist") { Task { await waitlist() } }
+                    .buttonStyle(.bordered)
+                    .disabled(isWorking)
+            } else {
+                Button("Join the waitlist") { Task { await waitlist() } }
+                    .buttonStyle(.primary)
+                    .disabled(isWorking)
+            }
         } else {
             Button {
-                perform {
-                    try await model.join(gathering, app: app)
-                    gathering.isGoing = true
-                    gathering.attendeeCount += 1
-                }
+                Task { await join() }
             } label: {
-                if isWorking { ProgressView().tint(.white) } else { Text(gathering.isFull ? "Full" : "I'm going") }
+                if isWorking { ProgressView().tint(.white) } else { Text("I'm going") }
             }
             .buttonStyle(.primary)
-            .disabled(gathering.isFull || isWorking)
+            .disabled(isWorking)
             .sensoryFeedback(.success, trigger: gathering.going)
+        }
+    }
+
+    private func join() async {
+        if let reason = await GatheringAge.blockReason() {
+            ageMessage = reason
+            return
+        }
+        perform {
+            try await model.join(gathering, app: app)
+            gathering.isGoing = true
+            gathering.isWaiting = false
+            gathering.attendeeCount += 1
+        }
+    }
+
+    private func waitlist() async {
+        if gathering.waiting {
+            perform {
+                guard let userID = app.userID else { return }
+                try await app.backend?.leaveWaitlist(gatheringID: gathering.id, userID: userID)
+                gathering.isWaiting = false
+            }
+            return
+        }
+        if let reason = await GatheringAge.blockReason() {
+            ageMessage = reason
+            return
+        }
+        perform {
+            try await app.backend?.joinWaitlist(gatheringID: gathering.id)
+            gathering.isWaiting = true
+        }
+    }
+
+    private func postUpdate() {
+        let body = announcementDraft.trimmingCharacters(in: .whitespacesAndNewlines).clipped(to: 280)
+        guard !body.isEmpty else { return }
+        if let problem = ContentFilter.problem(in: body) {
+            errorMessage = problem
+            return
+        }
+        perform {
+            let note = try await app.backend?.postAnnouncement(gatheringID: gathering.id, body: body)
+            if let note { announcements.append(note) }
+            announcementDraft = ""
         }
     }
 

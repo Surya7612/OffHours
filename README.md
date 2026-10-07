@@ -73,7 +73,13 @@ Supabase (Postgres, Auth, Edge Functions on Deno) · APNs
   dark, outdoor picks move behind indoor ones. Sunset is calculated on device and outdoor picks
   say when to head out. Without weather data the picks are unchanged.
 - **Invite-only gatherings**: a host can hide a gathering from people nearby and share a
-  6-character code. Each date of a weekly gathering has its own code.
+  6-character code. Each date of a weekly gathering has its own code. Tonight can also turn the
+  evening's plan into a two-person invite, and share that plan with someone you trust.
+- **Gathering reliability**: a host can close RSVPs early, people can wait for a full gathering,
+  and the person waiting longest is added when a spot opens. Guests can confirm and check in
+  when they arrive. Hosts can post a short update, and a count of finished public gatherings
+  shows on the gathering. On iOS 26, hosting or joining asks Apple for an 18+ age range. The
+  answer is not stored. Tonight stays available either way.
 - **Weekly gatherings**: hosts can repeat a gathering for 2 to 4 weeks. Each date has its own
   RSVPs; nearby people get one alert for the series, and hosts can cancel one date or all.
 - **Gatherings in the journal**: after a gathering you joined, Tonight asks "How was it?" and

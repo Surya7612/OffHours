@@ -38,6 +38,7 @@
 		762143E89F57BA38C58B6240 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF59DCD58B44C2A1C580C654 /* RootView.swift */; };
 		7733C6734754CC6714195285 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 881215BE19CA8B98E7DD06D5 /* WidgetSnapshot.swift */; };
 		77676C888CD7D47E6F89BA3C /* OffHoursApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0AC91E9CE653C1A5EB3F9F /* OffHoursApp.swift */; };
+		7DE9C785CE4A55D3967B1596 /* GatheringAge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E93C428EA9177B5F8BC1E4 /* GatheringAge.swift */; };
 		8459545A067A8D50F54A086B /* PlaceFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C77BF28348AF9ACDA3F042 /* PlaceFinder.swift */; };
 		89119424EB0F6C605B4A972D /* OffHoursWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A44F7BEB2A19364258A4C5 /* OffHoursWidgetsBundle.swift */; };
 		89F69DD4CAED611FE8F98630 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 881215BE19CA8B98E7DD06D5 /* WidgetSnapshot.swift */; };
@@ -55,6 +56,7 @@
 		DE1B2D22BA5135F25007F0F9 /* SessionActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2A0C947F6844BF6E645160 /* SessionActivityAttributes.swift */; };
 		E57B2F3F8A02F662F291BFD4 /* PlaceSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660728ACC6D143A624BB2594 /* PlaceSearchView.swift */; };
 		F991CD5120656AAF444B7093 /* Gathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F6225E1397F92E7AD21F1E6 /* Gathering.swift */; };
+		FA51EDB73D215A89FEAB4E1B /* DeclaredAgeRange.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 95C26CBF4ED4051146021592 /* DeclaredAgeRange.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		FE8E0BAB528FAF97E35887C9 /* GatheringsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6877D7BD01E1C176863D855 /* GatheringsView.swift */; };
 /* End PBXBuildFile section */
 
@@ -101,6 +103,7 @@
 		30028A59DDC7C87C6F9E307A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		35A44F7BEB2A19364258A4C5 /* OffHoursWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OffHoursWidgetsBundle.swift; sourceTree = "<group>"; };
 		3B1A18ACFF62A6897C9B7921 /* EveningConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EveningConditions.swift; sourceTree = "<group>"; };
+		45E93C428EA9177B5F8BC1E4 /* GatheringAge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatheringAge.swift; sourceTree = "<group>"; };
 		4AF2F50C9465CDE9959B5EC1 /* OffHours.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OffHours.entitlements; sourceTree = "<group>"; };
 		4B0E0839FA1D0FD660A699CA /* CreateGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateGatheringView.swift; sourceTree = "<group>"; };
 		4C05CD31275A977C3E34209D /* OffHoursWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OffHoursWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -119,6 +122,7 @@
 		7F2A0C947F6844BF6E645160 /* SessionActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionActivityAttributes.swift; sourceTree = "<group>"; };
 		881215BE19CA8B98E7DD06D5 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		88824C5C06ADA60EF6C16760 /* Backend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
+		95C26CBF4ED4051146021592 /* DeclaredAgeRange.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeclaredAgeRange.framework; path = System/Library/Frameworks/DeclaredAgeRange.framework; sourceTree = SDKROOT; };
 		979B45D99EC8002675E70CD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9D6CD6A1B3AAB3AD72657036 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
 		A063497C40B780091B0D8F1D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -151,6 +155,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0E9567E163E96E62870CA6 /* Supabase in Frameworks */,
+				FA51EDB73D215A89FEAB4E1B /* DeclaredAgeRange.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -164,6 +169,7 @@
 				5FF41B75D1CE6831032BC7E5 /* OffHoursTests */,
 				BB66476C44C62FE8F827D357 /* OffHoursWidgets */,
 				6BD33CE4A4D8398C85C197A4 /* Shared */,
+				2825B95EFA3B99C9B2BF75A0 /* Frameworks */,
 				26DF148E179DA00BE6DD07A7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -202,6 +208,14 @@
 				4C05CD31275A977C3E34209D /* OffHoursWidgets.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2825B95EFA3B99C9B2BF75A0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				95C26CBF4ED4051146021592 /* DeclaredAgeRange.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		2E6A36267FE273626E8B220F /* Config */ = {
@@ -322,6 +336,7 @@
 				88824C5C06ADA60EF6C16760 /* Backend.swift */,
 				D788DE8AFB7CF6B9B59B83DE /* CalendarPlanner.swift */,
 				78301C22586225C7B83EFCE9 /* ContentFilter.swift */,
+				45E93C428EA9177B5F8BC1E4 /* GatheringAge.swift */,
 				A4A376F0A5B80F9821812564 /* LiveSession.swift */,
 				DB6A37D00C42EBE12429402B /* LocationService.swift */,
 				5865535ACD971BB5F5F93E7C /* NotificationScheduler.swift */,
@@ -523,6 +538,7 @@
 				25F3B84BDD2F22D35DA95818 /* CreateGatheringView.swift in Sources */,
 				9E2F4C3AF6ACD35FD9AD66F8 /* EveningConditions.swift in Sources */,
 				F991CD5120656AAF444B7093 /* Gathering.swift in Sources */,
+				7DE9C785CE4A55D3967B1596 /* GatheringAge.swift in Sources */,
 				5B4299E0A8F2D8DE3284F832 /* GatheringDetailView.swift in Sources */,
 				669528599BF8CA94CCAF3CBD /* GatheringsModel.swift in Sources */,
 				FE8E0BAB528FAF97E35887C9 /* GatheringsView.swift in Sources */,

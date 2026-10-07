@@ -236,6 +236,32 @@ struct NudgePickerTests {
         #expect(earlier == morning)
     }
 
+    @Test func confirmAndArriveOpenOnlyNearTheStart() {
+        var gathering = Gathering(
+            id: UUID(),
+            hostID: UUID(),
+            hostName: "Asha",
+            title: "River walk",
+            details: "",
+            startsAt: Date(timeIntervalSince1970: 1_800_000_000),
+            durationMinutes: 60,
+            placeName: "Park",
+            placeAddress: "",
+            lat: 0,
+            lng: 0,
+            capacity: 4,
+            attendeeCount: 2,
+            isGoing: true
+        )
+        let start = gathering.startsAt
+        #expect(!gathering.canConfirm(at: start.addingTimeInterval(-26 * 60 * 60)))
+        #expect(gathering.canConfirm(at: start.addingTimeInterval(-2 * 60 * 60)))
+        #expect(gathering.canArrive(at: start.addingTimeInterval(-10 * 60)))
+        #expect(!gathering.canArrive(at: start.addingTimeInterval(-2 * 60 * 60)))
+        gathering.confirmedAt = start
+        #expect(!gathering.canConfirm(at: start.addingTimeInterval(-2 * 60 * 60)))
+    }
+
     @Test func checkInExpiresAtMidnight() throws {
         let userID = UUID()
         let day = Date(timeIntervalSince1970: 1_790_000_000)

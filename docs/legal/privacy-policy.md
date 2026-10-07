@@ -13,8 +13,8 @@ that work, we never sell your data, and we don't use it for advertising or track
   willing to travel.
 - **Journal**: activities you finish, how long they took, the place name if one was suggested,
   and anything you write about them.
-- **Gatherings**: gatherings you host (title, description, time, place and its coordinates) and
-  gatherings you join.
+- **Gatherings**: gatherings you host (title, description, time, place and its coordinates),
+  gatherings you join, a waitlist spot, a short host update, and the time you confirm or arrive.
 - **Safety**: reports you file and people you block.
 - **Notifications**: a push notification token for your device, so we can tell you when someone
   joins a gathering you host.
@@ -36,6 +36,8 @@ that work, we never sell your data, and we don't use it for advertising or track
   not read your other events, and the event stays in Apple Calendar.
 - **Evening preferences** such as quieter, indoor, or free. They stay on your device and are
   cleared when you sign out.
+- **Your age.** On iOS 26, hosting or joining a gathering can ask Apple whether your age range
+  includes 18. OffHours does not receive or store your birthday.
 - Contacts, photos, health data, or advertising identifiers.
 
 ## Who can see what

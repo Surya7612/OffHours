@@ -25,6 +25,8 @@ struct TonightView: View {
     @State private var isSavingCalendar = false
     @State private var calendarMessage: String?
     @State private var calendarNeedsSettings = false
+    @State private var buddySeed: GatheringSeed?
+    @State private var ageMessage: String?
     @AppStorage("skippedGatheringLogs") private var skippedLogs = ""
     @Environment(\.colorScheme) private var colorScheme
 
@@ -101,6 +103,7 @@ struct TonightView: View {
                             calendarSaved: calendarSavedID == activity.id,
                             isSavingCalendar: isSavingCalendar,
                             onAddToCalendar: { Task { await addToCalendar(activity) } },
+                            onPlanWithFriend: { Task { await planWithFriend(activity) } },
                             onSomethingElse: { showSkipReasons = true }
                         )
                         .id(activity.id)
@@ -143,6 +146,27 @@ struct TonightView: View {
             }
             .sheet(isPresented: $showSettings, onDismiss: loadPersonalization) {
                 SettingsView()
+            }
+            .sheet(item: $buddySeed) { seed in
+                CreateGatheringView(near: model.location.lastLocation, seed: seed) { created in
+                    Task {
+                        for gathering in created {
+                            await NotificationScheduler.scheduleReminder(for: gathering)
+                        }
+                        if let first = created.first {
+                            await model.backend?.sendGatheringAlert(.created, gatheringID: first.id)
+                        }
+                        await loadAround()
+                    }
+                }
+            }
+            .alert("Gatherings", isPresented: Binding(
+                get: { ageMessage != nil },
+                set: { if !$0 { ageMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(ageMessage ?? "")
             }
             .alert("Calendar", isPresented: Binding(
                 get: { calendarMessage != nil },
@@ -211,6 +235,22 @@ struct TonightView: View {
             skippedTonight.insert(activity.id)
             choiceIndex = 0
         }
+    }
+
+    private func planWithFriend(_ activity: Activity) async {
+        if let reason = await GatheringAge.blockReason() {
+            ageMessage = reason
+            return
+        }
+        let place = place.map {
+            Place(name: $0.name, address: $0.address, coordinate: $0.coordinate, distanceMeters: $0.distanceMeters)
+        }
+        buddySeed = GatheringSeed(
+            title: activity.title,
+            details: activity.summary,
+            durationMinutes: activity.minutes,
+            place: place
+        )
     }
 
     private func addToCalendar(_ activity: Activity) async {
@@ -543,7 +583,15 @@ private struct ActivityHeroCard: View {
     let calendarSaved: Bool
     let isSavingCalendar: Bool
     let onAddToCalendar: () -> Void
+    let onPlanWithFriend: () -> Void
     let onSomethingElse: () -> Void
+
+    private var tellSomeone: String {
+        var lines = ["I'm spending the evening offline: \(activity.title) (\(activity.minutes) min)."]
+        if let place { lines.append(place.name) }
+        lines.append(AppConfig.downloadURL.absoluteString)
+        return lines.joined(separator: "\n")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -605,10 +653,17 @@ private struct ActivityHeroCard: View {
                 }
                 .font(.subheadline.weight(.medium))
                 .frame(maxWidth: .infinity)
-                Button(calendarSaved ? "On your calendar" : "Add to Calendar", systemImage: "calendar.badge.plus", action: onAddToCalendar)
-                    .disabled(calendarSaved || isSavingCalendar)
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 16) {
+                    Button(calendarSaved ? "On your calendar" : "Add to Calendar", systemImage: "calendar.badge.plus", action: onAddToCalendar)
+                        .disabled(calendarSaved || isSavingCalendar)
+                    Button("Plan with a friend", systemImage: "person.2", action: onPlanWithFriend)
+                }
+                .font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity)
+                ShareLink(item: tellSomeone) {
+                    Label("Tell someone", systemImage: "paperplane")
+                }
+                .font(.subheadline.weight(.medium))
             }
         }
     }

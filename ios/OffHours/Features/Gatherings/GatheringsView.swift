@@ -11,6 +11,7 @@ struct GatheringsView: View {
     @State private var showInviteCode = false
     @State private var inviteCode = ""
     @State private var inviteError: String?
+    @State private var ageMessage: String?
     @AppStorage("dismissedAlertsPrompt") private var dismissedAlertsPrompt = false
 
     var body: some View {
@@ -65,7 +66,7 @@ struct GatheringsView: View {
                         } description: {
                             Text("Be the first. Host a walk, a coffee or a quiet hour at a park and neighbors can join.")
                         } actions: {
-                            Button("Host a gathering") { showCreate = true }
+                            Button("Host a gathering") { Task { await beginHosting() } }
                                 .buttonStyle(.borderedProminent)
                                 .tint(Theme.ember)
                         }
@@ -84,7 +85,7 @@ struct GatheringsView: View {
             .navigationTitle("Gatherings")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Host", systemImage: "plus") { showCreate = true }
+                    Button("Host", systemImage: "plus") { Task { await beginHosting() } }
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Invite code", systemImage: "ticket") { showInviteCode = true }
@@ -112,6 +113,14 @@ struct GatheringsView: View {
                 } else {
                     unavailable = true
                 }
+            }
+            .alert("Gatherings", isPresented: Binding(
+                get: { ageMessage != nil },
+                set: { if !$0 { ageMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(ageMessage ?? "")
             }
             .alert("Invite code", isPresented: $showInviteCode) {
                 TextField("6-character code", text: $inviteCode)
@@ -176,6 +185,14 @@ struct GatheringsView: View {
             GatheringRow(gathering: gathering, isHost: gathering.hostID == app.userID)
         }
         .foregroundStyle(.primary)
+    }
+
+    private func beginHosting() async {
+        if let reason = await GatheringAge.blockReason() {
+            ageMessage = reason
+            return
+        }
+        showCreate = true
     }
 
     private func openInvite() async {

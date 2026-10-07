@@ -3,19 +3,33 @@ import SwiftUI
 
 struct CreateGatheringView: View {
     let near: CLLocation?
+    var seed: GatheringSeed?
     let onCreated: ([Gathering]) -> Void
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var details = ""
+    @State private var title: String
+    @State private var details: String
     @State private var meetingNote = ""
     @State private var startsAt = CreateGatheringView.defaultStart()
-    @State private var durationMinutes = 60
-    @State private var capacity = 6
+    @State private var durationMinutes: Int
+    @State private var capacity: Int
     @State private var repeatsWeekly = false
-    @State private var inviteOnly = false
+    @State private var inviteOnly: Bool
     @State private var inviteCode = CreateGatheringView.makeInviteCode()
+    @State private var rsvpClose = RSVPClose.none
+
+    init(near: CLLocation?, seed: GatheringSeed? = nil, onCreated: @escaping ([Gathering]) -> Void) {
+        self.near = near
+        self.seed = seed
+        self.onCreated = onCreated
+        _title = State(initialValue: seed?.title ?? "")
+        _details = State(initialValue: seed?.details ?? "")
+        _durationMinutes = State(initialValue: Self.snapped(seed?.durationMinutes ?? 60))
+        _capacity = State(initialValue: seed == nil ? 6 : 2)
+        _inviteOnly = State(initialValue: seed != nil)
+        _place = State(initialValue: seed?.place)
+    }
     @State private var weeks = 4
     @State private var place: Place?
     @State private var showPlaceSearch = false
@@ -24,6 +38,28 @@ struct CreateGatheringView: View {
     @State private var errorMessage: String?
 
     private static let durations = [30, 45, 60, 90, 120]
+
+    private enum RSVPClose: Int, CaseIterable, Identifiable {
+        case none = 0
+        case oneHour = 1
+        case threeHours = 3
+        case oneDay = 24
+
+        var id: Int { rawValue }
+        var label: String {
+            switch self {
+            case .none: "Stay open"
+            case .oneHour: "1 hour before"
+            case .threeHours: "3 hours before"
+            case .oneDay: "1 day before"
+            }
+        }
+
+        func closes(before start: Date) -> Date? {
+            guard rawValue > 0 else { return nil }
+            return start.addingTimeInterval(-TimeInterval(rawValue * 60 * 60))
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -72,6 +108,12 @@ struct CreateGatheringView: View {
                     }
 
                     Stepper("Up to \(capacity) people", value: $capacity, in: 2...20)
+
+                    Picker("RSVPs close", selection: $rsvpClose) {
+                        ForEach(RSVPClose.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
                 }
 
                 Section {
@@ -109,7 +151,7 @@ struct CreateGatheringView: View {
                     }
                 }
             }
-            .navigationTitle("Host a gathering")
+            .navigationTitle(seed == nil ? "Host a gathering" : "Plan with a friend")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -170,6 +212,10 @@ struct CreateGatheringView: View {
             errorMessage = "Pick a start time at least a few minutes from now."
             return
         }
+        if let closes = rsvpClose.closes(before: startsAt), closes <= .now {
+            errorMessage = "That RSVP deadline has already passed. Pick a later start or leave RSVPs open."
+            return
+        }
 
         isSaving = true
         errorMessage = nil
@@ -185,6 +231,7 @@ struct CreateGatheringView: View {
                     seriesID: seriesID,
                     isPrivate: inviteOnly,
                     inviteCode: inviteOnly ? (index == 0 ? inviteCode : Self.makeInviteCode()) : nil,
+                    rsvpClosesAt: rsvpClose.closes(before: date),
                     startsAt: date,
                     durationMinutes: durationMinutes,
                     placeName: place.name.clipped(to: 120),
@@ -199,6 +246,10 @@ struct CreateGatheringView: View {
         } catch {
             errorMessage = error.userMessage
         }
+    }
+
+    private static func snapped(_ minutes: Int) -> Int {
+        durations.first { $0 >= minutes } ?? durations.last!
     }
 
     private static func makeInviteCode() -> String {
