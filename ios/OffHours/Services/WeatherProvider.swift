@@ -27,6 +27,15 @@ enum WeatherProvider {
 
     static let legalPage = URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
 
+    /// Whole degrees in the person's temperature unit. The default measurement style keeps the raw precision.
+    nonisolated static func temperatureLabel(_ temperature: Measurement<UnitTemperature>) -> String {
+        temperature.formatted(.measurement(
+            width: .narrow,
+            usage: .weather,
+            numberFormatStyle: .number.precision(.fractionLength(0))
+        ))
+    }
+
     static func conditions(at location: CLLocation, now: Date = .now, fresh: Bool = false) async -> (EveningConditions, Attribution?) {
         let sunset = SunCalculator.sunset(
             on: now,
@@ -66,8 +75,7 @@ enum WeatherProvider {
         } else {
             .clear
         }
-        let temperature = current.temperature.formatted(.measurement(width: .narrow, usage: .weather))
-        conditions.summary = "\(temperature) · \(current.condition.description)"
+        conditions.summary = "\(temperatureLabel(current.temperature)) · \(current.condition.description)"
         conditions.symbol = current.symbolName
         lastProblem = nil
 

@@ -8,13 +8,15 @@ product, design, SwiftUI client, Supabase backend, push infrastructure, moderati
 release.
 
 <p align="center">
-  <img src="docs/images/tonight.png" width="200" alt="Tonight: one suggestion for the evening">
-  <img src="docs/images/session.png" width="200" alt="Activity timer that continues on the Lock Screen">
-  <img src="docs/images/journal.png" width="200" alt="Journal with streaks and minutes offline">
-  <img src="docs/images/host-gathering.png" width="200" alt="Hosting a weekly gathering">
+  <img src="docs/images/tonight.png" width="200" alt="Tonight, with the weather and one suggestion">
+  <img src="docs/images/check-in.png" width="200" alt="Check-in for time, energy, budget, and company">
+  <img src="docs/images/tonight-more.png" width="200" alt="More like this, add to calendar, and a gathering nearby">
+  <img src="docs/images/host-gathering.png" width="200" alt="Hosting a gathering, with an RSVP deadline and invite-only">
 </p>
 <p align="center">
-  <img src="docs/images/widget.png" width="340" alt="Home Screen widget">
+  <img src="docs/images/settings.png" width="200" alt="Settings for the daily nudge and what usually fits">
+  <img src="docs/images/interests.png" width="200" alt="Interest chips that shape Tonight">
+  <img src="docs/images/journal.png" width="200" alt="Journal before the first evening is logged">
 </p>
 
 ## Highlights
@@ -23,9 +25,11 @@ release.
   third-party UI code. The project is generated with XcodeGen.
 - **WidgetKit and ActivityKit**: a Home Screen and Lock Screen widget that shares data with the
   app through an App Group, and a Live Activity countdown on the Lock Screen and Dynamic Island.
-- **Context-aware suggestions**: picks are deterministic per person and day, so a notification
-  scheduled days ahead matches what the app shows. WeatherKit and an on-device sunset calculation
-  move outdoor ideas aside on rainy or dark evenings.
+- **Context-aware suggestions**: a check-in for time, energy, budget, and company tunes Tonight,
+  and lasting preferences (quieter, closer, indoor, free) stay on the device. Picks are
+  deterministic per person and day, so a notification scheduled days ahead matches what the app
+  shows. WeatherKit and an on-device sunset calculation move outdoor ideas aside on rainy or dark
+  evenings.
 - **Real places, not a database of them**: MapKit finds the nearest park, café, library, museum or
   waterfront on device.
 - **Supabase backend secured by row level security** on every table. Location-based queries,

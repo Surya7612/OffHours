@@ -141,3 +141,12 @@ struct WeekAndWidgetTests {
         #expect(ActivityLibrary.all.count >= 60)
     }
 }
+
+struct WeatherLabelTests {
+    @Test func temperatureRoundsToAWholeDegree() {
+        let label = WeatherProvider.temperatureLabel(Measurement(value: 11.856191, unit: .celsius))
+        let digits = label.filter(\.isNumber)
+        #expect(digits == "12" || digits == "53")
+        #expect(label.contains("°"))
+    }
+}
